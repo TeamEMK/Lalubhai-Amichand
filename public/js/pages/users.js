@@ -755,12 +755,34 @@ window.Pages.users = (() => {
       </div>`;
 
     if (existing) {
-      existing.outerHTML = html;
-    } else {
-      document.body.insertAdjacentHTML('beforeend', html);
+      existing.remove();
     }
+    document.body.insertAdjacentHTML('beforeend', html);
 
     bindPwdModal();
+  }
+
+  function _updatePwdMismatch() {
+    const mismatch = _pwdConfirm.length > 0 && _pwdPassword !== _pwdConfirm;
+    const confInput = document.getElementById('pwd-confirm');
+    if (confInput) {
+      confInput.style.borderColor = mismatch ? '#f87171' : '';
+      confInput.style.background  = mismatch ? '#fef2f2' : '';
+    }
+    let errEl = document.getElementById('pwd-mismatch-err');
+    if (mismatch) {
+      if (!errEl) {
+        errEl = document.createElement('p');
+        errEl.id = 'pwd-mismatch-err';
+        errEl.className = 'text-red-500 text-xs mt-1';
+        errEl.textContent = 'Passwords do not match';
+        confInput?.parentElement?.parentElement?.appendChild(errEl);
+      }
+    } else if (errEl) {
+      errEl.remove();
+    }
+    const saveBtn = document.getElementById('pwd-save');
+    if (saveBtn) saveBtn.disabled = _pwdSaving || mismatch;
   }
 
   function bindPwdModal() {
@@ -772,21 +794,26 @@ window.Pages.users = (() => {
 
     document.getElementById('pwd-new')?.addEventListener('input', e => {
       _pwdPassword = e.target.value;
-      // live re-render only if confirm is non-empty (to update mismatch indicator)
-      if (_pwdConfirm.length > 0) renderPwdModal();
+      _updatePwdMismatch();
     });
     document.getElementById('pwd-confirm')?.addEventListener('input', e => {
       _pwdConfirm = e.target.value;
-      renderPwdModal();
+      _updatePwdMismatch();
     });
 
     document.getElementById('pwd-toggle-new')?.addEventListener('click', () => {
       _pwdShowPass = !_pwdShowPass;
-      renderPwdModal();
+      const inp = document.getElementById('pwd-new');
+      const btn = document.getElementById('pwd-toggle-new');
+      if (inp) inp.type = _pwdShowPass ? 'text' : 'password';
+      if (btn) btn.innerHTML = eyeIconSvg(_pwdShowPass);
     });
     document.getElementById('pwd-toggle-conf')?.addEventListener('click', () => {
       _pwdShowConf = !_pwdShowConf;
-      renderPwdModal();
+      const inp = document.getElementById('pwd-confirm');
+      const btn = document.getElementById('pwd-toggle-conf');
+      if (inp) inp.type = _pwdShowConf ? 'text' : 'password';
+      if (btn) btn.innerHTML = eyeIconSvg(_pwdShowConf);
     });
 
     document.getElementById('pwd-save')?.addEventListener('click', setPassword);

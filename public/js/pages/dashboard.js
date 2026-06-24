@@ -239,12 +239,37 @@ window.Pages.dashboard = (function () {
       </style>
 
       <div id="db-wrap">
-        <!-- Top bar -->
-        <div id="db-topbar" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;">
-          <div id="db-title-row" style="display:none;">
-            <h2 style="font-size:18px;font-weight:800;color:#0f172a;margin:0;">Dashboard</h2>
-            ${admin ? `<div id="db-emp-picker-mobile"></div>` : ''}
-          </div>
+        <!-- Top bar: emp picker LEFT | buttons RIGHT -->
+        <div id="db-topbar" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:20px;">
+
+          <!-- LEFT: employee picker (admin) or title (non-admin) -->
+          ${admin ? `
+          <div id="db-emp-picker" style="position:relative;">
+            <button id="db-emp-trigger" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;font-size:13px;font-weight:500;color:#374151;cursor:pointer;min-width:200px;justify-content:space-between;">
+              <span style="display:flex;align-items:center;gap:7px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span id="db-emp-label" style="font-weight:600;">All Employees</span>
+              </span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div id="db-emp-dropdown" style="display:none;position:absolute;left:0;top:calc(100% + 4px);width:280px;background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:200;overflow:hidden;">
+              <div style="padding:8px;">
+                <input id="db-emp-search" type="text" placeholder="Search employee..." style="width:100%;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;outline:none;box-sizing:border-box;" />
+              </div>
+              <div id="db-emp-list" style="max-height:260px;overflow-y:auto;padding:4px 0;">
+                <div data-emp-val="All" data-emp-label="All Employees" class="db-emp-opt" style="padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:600;color:#374151;background:#f0f9ff;">All Employees</div>
+                ${(users || []).sort((a,b)=>a.name.localeCompare(b.name)).map(u => {
+                  const dept = (u.department||'').length > 16 ? (u.department||'').slice(0,16)+'…' : (u.department||'');
+                  return `<div data-emp-val="${u.name}" data-emp-label="${u.name}${u.department ? ' · '+u.department : ''}" class="db-emp-opt" style="padding:8px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                    <span style="font-size:12.5px;font-weight:600;color:#0f172a;">${u.name}</span>
+                    ${dept ? `<span style="font-size:11px;color:#94a3b8;white-space:nowrap;">${dept}</span>` : ''}
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>
+          </div>` : `<h2 style="font-size:17px;font-weight:700;color:#0f172a;margin:0;">Dashboard</h2>`}
+
+          <!-- RIGHT: action buttons -->
           <div id="db-btn-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             ${admin ? `
             <button id="db-btn-holidays" style="display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:8px;font-size:12.5px;font-weight:600;background:#f59e0b;color:#fff;border:none;cursor:pointer;">
@@ -264,33 +289,12 @@ window.Pages.dashboard = (function () {
               Transfer
             </button>` : ''}
           </div>
-          ${admin ? `
-          <!-- Custom employee picker (top-right) -->
-          <div id="db-emp-picker" style="position:relative;">
-            <button id="db-emp-trigger" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;font-size:12.5px;font-weight:500;color:#374151;cursor:pointer;min-width:240px;justify-content:space-between;">
-              <span style="display:flex;align-items:center;gap:6px;">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                <span style="color:#94a3b8;font-size:11.5px;font-weight:600;">Dashboard:</span>
-                <span id="db-emp-label">All Employees</span>
-              </span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-            </button>
-            <div id="db-emp-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 4px);width:280px;background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:200;overflow:hidden;">
-              <div style="padding:8px;">
-                <input id="db-emp-search" type="text" placeholder="Search employee..." style="width:100%;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;outline:none;box-sizing:border-box;" />
-              </div>
-              <div id="db-emp-list" style="max-height:260px;overflow-y:auto;padding:4px 0;">
-                <div data-emp-val="All" data-emp-label="All Employees" class="db-emp-opt" style="padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:600;color:#374151;background:#f0f9ff;">All Employees</div>
-                ${(users || []).sort((a,b)=>a.name.localeCompare(b.name)).map(u => {
-                  const dept = (u.department||'').length > 14 ? (u.department||'').slice(0,14)+'…' : (u.department||'');
-                  return `<div data-emp-val="${u.name}" data-emp-label="${u.name}${u.department ? ' · '+u.department : ''}" class="db-emp-opt" style="padding:8px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                    <span style="font-size:12.5px;font-weight:600;color:#0f172a;">${u.name}</span>
-                    ${dept ? `<span style="font-size:11px;color:#94a3b8;white-space:nowrap;">${dept}</span>` : ''}
-                  </div>`;
-                }).join('')}
-              </div>
-            </div>
-          </div>` : ''}
+
+          <!-- Mobile title row (hidden on desktop) -->
+          <div id="db-title-row" style="display:none;width:100%;align-items:center;justify-content:space-between;">
+            <h2 style="font-size:18px;font-weight:800;color:#0f172a;margin:0;">Dashboard</h2>
+            ${admin ? `<div id="db-emp-picker-mobile"></div>` : ''}
+          </div>
         </div>
 
         <!-- Stat cards -->
