@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>India Automotive — Task Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    /* ── Base resets ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; }
+
+    /* ── Sidebar collapse/expand ─────────────────────────────────── */
+    #sidebar {
+      position: fixed;
+      left: 0; top: 0;
+      height: 100vh;
+      width: 64px;
+      background: #09090b;
+      border-right: 1px solid #1c1c1f;
+      box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      z-index: 40;
+      overflow: hidden;
+      transition: width 200ms ease-out;
+    }
+    #sidebar:hover { width: 230px; }
+
+    /* Labels / user-card text hidden until hover */
+    #sidebar .sb-label,
+    #sidebar .sb-user-name,
+    #sidebar .sb-user-role,
+    #sidebar .sb-signout {
+      opacity: 0;
+      transition: opacity 200ms ease-out;
+      white-space: nowrap;
+    }
+    #sidebar:hover .sb-label,
+    #sidebar:hover .sb-user-name,
+    #sidebar:hover .sb-user-role,
+    #sidebar:hover .sb-signout { opacity: 1; }
+
+    /* Brand strip */
+    #sb-brand {
+      height: 56px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      border-bottom: 1px solid #1c1c1f;
+    }
+
+    /* Nav link */
+    .sb-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 36px;
+      padding: 0 10px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: #ffffff;
+      text-decoration: none;
+      position: relative;
+      transition: background 150ms;
+      cursor: pointer;
+    }
+    .sb-link:hover { background: rgba(255,255,255,0.07); }
+    .sb-link.active {
+      background: rgba(46,114,181,0.18);
+      font-weight: 700;
+    }
+    .sb-link .sb-active-bar {
+      display: none;
+      position: absolute;
+      left: 0; top: 6px; bottom: 6px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: #2E72B5;
+    }
+    .sb-link.active .sb-active-bar { display: block; }
+    .sb-link svg { flex-shrink: 0; }
+    .sb-link.active svg { color: #5B9ED7; }
+
+    /* Pending badge */
+    .sb-badge {
+      position: absolute;
+      top: -6px; right: -6px;
+      min-width: 14px; height: 14px;
+      padding: 0 3px;
+      border-radius: 9999px;
+      background: #C4714A;
+      box-shadow: 0 0 0 2px #09090b;
+      font-size: 9px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Icon wrapper (relative for badge) */
+    .sb-icon-wrap { position: relative; flex-shrink: 0; }
+
+    /* Nav scroll area */
+    #sb-nav {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 8px 0;
+    }
+    #sb-nav::-webkit-scrollbar { width: 4px; }
+    #sb-nav::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
+
+    .sb-section { margin-bottom: 4px; }
+    .sb-section-inner { padding: 0 8px; display: flex; flex-direction: column; gap: 2px; }
+
+    /* User card */
+    #sb-user {
+      padding: 8px 8px 12px;
+      flex-shrink: 0;
+      border-top: 1px solid #1c1c1f;
+    }
+    #sb-user-inner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px;
+      border-radius: 8px;
+    }
+    #sb-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f59e0b, #ec4899);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+    #sb-user-text { min-width: 0; flex: 1; }
+    .sb-user-name { font-size: 12px; font-weight: 500; color: #e4e4e7; overflow: hidden; text-overflow: ellipsis; }
+    .sb-user-role { font-size: 10px; color: #52525b; overflow: hidden; text-overflow: ellipsis; }
+    #sb-signout-btn {
+      background: none; border: none; cursor: pointer;
+      color: #3f3f46; padding: 4px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      transition: color 150ms, background 150ms;
+    }
+    #sb-signout-btn:hover { color: #f87171; background: rgba(220,38,38,0.1); }
+
+    /* ── Topbar ──────────────────────────────────────────────────── */
+    #topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(255,255,255,0.92);
+      border-bottom: 1px solid #e2e8f0;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    #topbar-inner {
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    #topbar-title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.015em;
+      color: #1e293b;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #topbar-date {
+      font-size: 12px;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+    }
+
+    /* ── App Shell layout ────────────────────────────────────────── */
+    #app-shell { display: none; min-height: 100vh; }
+    #shell-body {
+      margin-left: 64px;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    #main-content {
+      flex: 1;
+      padding: 16px;
+    }
+    @media (min-width: 1024px) {
+      #main-content { padding: 24px; }
+    }
+    #main-content-inner {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    /* ── Login page ──────────────────────────────────────────────── */
+    #login-page { display: none; }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      33%       { transform: translateY(-10px) rotate(-1deg); }
+      66%       { transform: translateY(-5px) rotate(1deg); }
+    }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .login-card { animation: fadeSlide 0.5s cubic-bezier(0.16,1,0.3,1) both; }
+    .login-input { transition: border-color 0.15s, box-shadow 0.15s; outline: none; }
+    .login-input:focus { border-color: #C4714A !important; box-shadow: 0 0 0 3px rgba(196,113,74,0.12); }
+
+    /* ── Utility: page hidden by default ────────────────────────── */
+    .page { display: none; }
+    .page.active { display: block; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     LOGIN PAGE
+════════════════════════════════════════════════════════════════ -->
+<div id="login-page">
+  <div style="
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: radial-gradient(ellipse at 25% 60%, #F5C97A 0%, #FDEBC8 35%, #FDF6ED 65%, #FFFBF5 100%);
+  ">
+    <div class="login-card" style="width: 100%; max-width: 23rem;">
+      <div style="
+        background: #FFFFFF;
+        border-radius: 1.5rem;
+        padding: 2.25rem 2rem;
+        box-shadow: 0 8px 40px rgba(180,120,50,0.12), 0 2px 8px rgba(0,0,0,0.06);
+      ">
+        <!-- Header -->
+        <div style="text-align: center; margin-bottom: 1.75rem;">
+          <div style="
+            font-size: 10px; font-weight: 700; letter-spacing: 0.26em;
+            text-transform: uppercase; color: #C4714A; margin-bottom: 4px;
+          ">Task Manager</div>
+          <div style="display: flex; justify-content: center; gap: 4px; margin-bottom: 1.25rem;">
+            <span style="width:5px;height:5px;border-radius:50%;background:#F5D6C4;display:inline-block;"></span>
+            <span style="width:5px;height:5px;border-radius:50%;background:#C4714A;display:inline-block;"></span>
+            <span style="width:5px;height:5px;border-radius:50%;background:#F5D6C4;display:inline-block;"></span>
+          </div>
+          <h1 style="font-size:1.35rem;font-weight:700;color:#1e293b;margin:0 0 4px;">Welcome back 👋</h1>
+          <p style="font-size:12.5px;color:#94a3b8;margin:0;">Sign in to your account</p>
+        </div>
+
+        <!-- Form -->
+        <form id="login-form" style="display:flex;flex-direction:column;gap:1rem;">
+
+          <!-- Email -->
+          <div>
+            <label style="
+              display:block;font-size:10.5px;font-weight:600;
+              letter-spacing:0.08em;text-transform:uppercase;
+              color:#64748b;margin-bottom:6px;
+            ">Email Address</label>
+            <div style="position:relative;">
+              <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;display:flex;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                </svg>
+              </span>
+              <input id="login-email" class="login-input" type="email" required autocomplete="email"
+                placeholder="Enter your email"
+                style="
+                  width:100%;box-sizing:border-box;
+                  padding:10px 12px 10px 36px;
+                  background:#F8FAFC;border:1.5px solid #E2E8F0;border-radius:10px;
+                  color:#1e293b;font-size:13px;
+                "
+              />
+            </div>
+          </div>
+
+          <!-- Password -->
+          <div>
+            <label style="
+              display:block;font-size:10.5px;font-weight:600;
+              letter-spacing:0.08em;text-transform:uppercase;
+              color:#64748b;margin-bottom:6px;
+            ">Password</label>
+            <div style="position:relative;">
+              <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;display:flex;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </span>
+              <input id="login-password" class="login-input" type="password" required autocomplete="current-password"
+                placeholder="Enter your password"
+                style="
+                  width:100%;box-sizing:border-box;
+                  padding:10px 42px 10px 36px;
+                  background:#F8FAFC;border:1.5px solid #E2E8F0;border-radius:10px;
+                  color:#1e293b;font-size:13px;
+                "
+              />
+              <button type="button" id="login-toggle-pass" style="
+                position:absolute;right:11px;top:50%;transform:translateY(-50%);
+                background:none;border:none;cursor:pointer;color:#94a3b8;display:flex;padding:2px;
+              ">
+                <!-- eye icon (show) -->
+                <svg id="login-eye-show" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+                <!-- eye-off icon (hide) — hidden by default -->
+                <svg id="login-eye-hide" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Error message -->
+          <p id="login-error" style="
+            display:none;color:#ef4444;font-size:12px;text-align:center;
+            margin:0;background:#fef2f2;padding:8px 12px;border-radius:8px;
+          "></p>
+
+          <!-- Submit -->
+          <button type="submit" id="login-btn" style="
+            width:100%;padding:12px;
+            background:linear-gradient(135deg,#C4714A 0%,#D4895A 100%);
+            color:white;font-weight:700;font-size:14px;
+            border:none;border-radius:10px;cursor:pointer;
+            box-shadow:0 4px 20px rgba(196,113,74,0.35);
+            transition:all 0.15s;letter-spacing:0.02em;
+            display:flex;align-items:center;justify-content:center;gap:8px;
+            margin-top:4px;
+          ">
+            <span id="login-btn-label">Sign In <span style="font-size:16px;">→</span></span>
+            <span id="login-btn-spinner" style="display:none;align-items:center;gap:8px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                style="animation:spin 0.7s linear infinite;">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+              </svg>
+              Signing in…
+            </span>
+          </button>
+        </form>
+
+        <!-- Footer -->
+        <div style="text-align:center;margin-top:1.5rem;">
+          <div style="width:100%;height:1px;background:linear-gradient(90deg,transparent,#E2E8F0,transparent);margin-bottom:1rem;"></div>
+          <p style="font-size:11px;color:#94a3b8;margin:0;">
+            <span style="color:#C4714A;font-weight:600;letter-spacing:0.05em;">India Automotive Task Manager</span>
+            <span style="margin:0 6px;color:#cbd5e1;">·</span>
+            <span style="color:#94a3b8;">Grow Your Business</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     APP SHELL  (hidden until authenticated)
+════════════════════════════════════════════════════════════════ -->
+<div id="app-shell">
+
+  <!-- ── Sidebar ─────────────────────────────────────────────────── -->
+  <aside id="sidebar">
+
+    <!-- Brand -->
+    <div id="sb-brand">
+      <!-- Icon mark always visible -->
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="flex-shrink:0;">
+        <rect width="28" height="28" rx="7" fill="#C4714A"/>
+        <path d="M7 20V10l7-4 7 4v10" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M11 20v-5h6v5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="sb-label leading-tight min-w-0">
+        <div style="font-size:13px;font-weight:600;letter-spacing:-0.01em;color:#f4f4f5;">India Automotive</div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav id="sb-nav">
+
+      <!-- WORKSPACE -->
+      <div class="sb-section">
+        <div class="sb-section-inner">
+
+          <a class="sb-link" data-route="dashboard" href="#dashboard">
+            <span class="sb-active-bar"></span>
+            <span class="sb-icon-wrap">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/>
+                <rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>
+              </svg>
+            </span>
+            <span class="sb-label">Dashboard</span>
+          </a>
+
+          <a class="sb-link" data-route="all-tasks" href="#all-tasks">
+            <span class="sb-active-bar"></span>
+            <span class="sb-icon-wrap">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+                <rect x="9" y="3" width="6" height="4" rx="1"/>
+                <path d="m9 14 2 2 4-4"/>
+              </svg>
+            </span>
+            <span class="sb-label">All Tasks</span>
+          </a>
+
+          <a class="sb-link" data-route="approvals" href="#approvals">
+            <span class="sb-active-bar"></span>
+            <span class="sb-icon-wrap" id="sb-approvals-icon">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <path d="m9 11 3 3L22 4"/>
+              </svg>
+              <!-- Badge injected by sidebar.js when count > 0 -->
+            </span>
+            <span class="sb-label">Approvals</span>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- OPERATIONS (admin-only items shown/hidden by sidebar.js) -->
+      <div class="sb-section" id="sb-section-operations">
+        <div class="sb-section-inner">
+
+          <a class="sb-link" data-route="fms" href="#fms" id="sb-link-fms">
+            <span class="sb-active-bar"></span>
+            <span class="sb-icon-wrap">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              </svg>
+            </span>
+            <span class="sb-label">FMS Master</span>
+          </a>
+
+          <a class="sb-link" data-route="client-master" href="#client-master" id="sb-link-client-master">
+            <span class="sb-active-bar"></span>
+            <span class="sb-icon-wrap">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 21h18M5 21V7l8-4 8 4v14M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1"/>
+              </svg>
+            </span>
+            <span class="sb-label">Client Master</span>
+          </a>
+
+          <a class="sb-link" data-route="mis" href="#mis" id="sb-link-mis">
+            <span class="sb-active-bar"></span>
+            <span class="sb-icon-wrap">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3v18h18"/>
+                <path d="m7 14 4-4 4 4 5-6"/>
+              </svg>
+            </span>
+            <span class="sb-label">MIS Report</span>
+          </a>
+
+          <a class="sb-link" data-route="race-tracker" href="#race-tracker" id="sb-link-race-tracker">
+            <span class="sb-active-bar"></span>
+            <span class="sb-icon-wrap">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 21V4"/>
+                <path d="M4 4h13l-2 4 2 4H4"/>
+              </svg>
+            </span>
+            <span class="sb-label">Race Tracker</span>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- DAILY -->
+      <div class="sb-section">
+        <div class="sb-section-inner">
+
+          <a class="sb-link" data-route="daily-task" href="#daily-task">
+            <span class="sb-active-bar"></span>
+            <span class="sb-icon-wrap">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <path d="M8 2v4M16 2v4M3 10h18"/>
+                <path d="m9 16 2 2 4-4"/>
+              </svg>
+            </span>
+            <span class="sb-label">Daily Task</span>
+          </a>
+
+          <a class="sb-link" data-route="leave-tracker" href="#leave-tracker">
+            <span class="sb-active-bar"></span>
+            <span class="sb-icon-wrap">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <path d="M8 2v4M16 2v4M3 10h18"/>
+                <path d="M8 15h2M14 15h2"/>
+              </svg>
+            </span>
+            <span class="sb-label">Leave Tracker</span>
+          </a>
+
+          <a class="sb-link" data-route="meetings" href="#meetings">
+            <span class="sb-active-bar"></span>
+            <span class="sb-icon-wrap">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </span>
+            <span class="sb-label">Meetings</span>
+          </a>
+
+          <a class="sb-link" data-route="daily-reports" href="#daily-reports">
+            <span class="sb-active-bar"></span>
+            <span class="sb-icon-wrap">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <path d="M14 2v6h6"/>
+                <path d="M8 13h2v4H8zM13 11h2v6h-2z"/>
+              </svg>
+            </span>
+            <span class="sb-label">Daily Reports</span>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- ADMINISTRATION -->
+      <div class="sb-section">
+        <div class="sb-section-inner">
+
+          <a class="sb-link" data-route="users" href="#users" id="sb-link-users">
+            <span class="sb-active-bar"></span>
+            <span class="sb-icon-wrap">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </span>
+            <span class="sb-label">Users</span>
+          </a>
+
+          <a class="sb-link" data-route="profile" href="#profile">
+            <span class="sb-active-bar"></span>
+            <span class="sb-icon-wrap">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </span>
+            <span class="sb-label">Profile</span>
+          </a>
+
+          <a class="sb-link" data-route="developer" href="#developer" id="sb-link-developer">
+            <span class="sb-active-bar"></span>
+            <span class="sb-icon-wrap">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 18 22 12 16 6"/>
+                <polyline points="8 6 2 12 8 18"/>
+              </svg>
+            </span>
+            <span class="sb-label">Developer</span>
+          </a>
+
+        </div>
+      </div>
+
+    </nav>
+
+    <!-- User card -->
+    <div id="sb-user">
+      <div id="sb-user-inner">
+        <div id="sb-avatar">U</div>
+        <div id="sb-user-text">
+          <div class="sb-user-name" id="sb-user-name-text">User</div>
+          <div class="sb-user-role" id="sb-user-role-text">Member</div>
+        </div>
+        <button id="sb-signout-btn" class="sb-signout" title="Sign out">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <path d="m16 17 5-5-5-5"/>
+            <path d="M21 12H9"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+  </aside>
+  <!-- /aside#sidebar -->
+
+  <!-- ── Shell body (topbar + main) ─────────────────────────────── -->
+  <div id="shell-body">
+
+    <!-- Topbar -->
+    <div id="topbar">
+      <div id="topbar-inner">
+        <h1 id="topbar-title"></h1>
+        <div style="flex:1;"></div>
+        <div id="topbar-date" class="hidden xl:flex">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;color:#cbd5e1;">
+            <rect x="3" y="4" width="18" height="18" rx="2"/>
+            <path d="M16 2v4M8 2v4M3 10h18"/>
+          </svg>
+          <span id="topbar-date-text"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main content — pages rendered here by router -->
+    <main id="main-content">
+      <div id="main-content-inner">
+        <!-- Page containers (router shows/hides) -->
+        <div id="page-login"        class="page" data-page="login"></div>
+        <div id="page-dashboard"    class="page" data-page="dashboard"></div>
+        <div id="page-all-tasks"    class="page" data-page="all-tasks"></div>
+        <div id="page-daily-task"   class="page" data-page="daily-task"></div>
+        <div id="page-approvals"    class="page" data-page="approvals"></div>
+        <div id="page-fms"          class="page" data-page="fms"></div>
+        <div id="page-race-tracker" class="page" data-page="race-tracker"></div>
+        <div id="page-meetings"     class="page" data-page="meetings"></div>
+        <div id="page-leave-tracker"class="page" data-page="leave-tracker"></div>
+        <div id="page-daily-reports"class="page" data-page="daily-reports"></div>
+        <div id="page-mis"          class="page" data-page="mis"></div>
+        <div id="page-users"        class="page" data-page="users"></div>
+        <div id="page-client-master"class="page" data-page="client-master"></div>
+        <div id="page-profile"      class="page" data-page="profile"></div>
+        <div id="page-developer"    class="page" data-page="developer"></div>
+      </div>
+    </main>
+
+  </div>
+  <!-- /shell-body -->
+
+</div>
+<!-- /app-shell -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SCRIPTS  (order matters)
+════════════════════════════════════════════════════════════════ -->
+<script src="/js/utils.js"></script>
+<script src="/js/router.js"></script>
+<script src="/js/components/sidebar.js"></script>
+<script src="/js/components/topbar.js"></script>
+
+<!-- Pages -->
+<script src="/js/pages/login.js"></script>
+<script src="/js/pages/dashboard.js"></script>
+<script src="/js/pages/all-tasks.js"></script>
+<script src="/js/pages/daily-task.js"></script>
+<script src="/js/pages/approvals.js"></script>
+<script src="/js/pages/fms.js"></script>
+<script src="/js/pages/race-tracker.js"></script>
+<script src="/js/pages/meetings.js"></script>
+<script src="/js/pages/leave-tracker.js"></script>
+<script src="/js/pages/daily-reports.js"></script>
+<script src="/js/pages/mis.js"></script>
+<script src="/js/pages/users.js"></script>
+<script src="/js/pages/client-master.js"></script>
+<script src="/js/pages/profile.js"></script>
+<script src="/js/pages/developer.js"></script>
+
+<!-- Bootstrap -->
+<script src="/js/main.js"></script>
+
+</body>
+</html>

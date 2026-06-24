@@ -1,0 +1,26 @@
+# dependencies
+node_modules
+.pnp
+.pnp.js
+
+# next
+.next
+out
+build
+
+# misc
+.DS_Store
+*.log
+npm-debug.log*
+
+# env
+.env
+.env.local
+.env*.local
+
+# runtime data (local JSON store — schema SQL lives in database/ and IS tracked)
+database/store.json
+
+# editor
+.vscode
+.idea
