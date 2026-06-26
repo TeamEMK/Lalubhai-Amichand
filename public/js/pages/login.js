@@ -253,9 +253,7 @@ window.Pages.login = {
     const btnText     = el.querySelector('#login-btn-text');
     const btnLoading  = el.querySelector('#login-btn-loading');
 
-    // Pre-fill admin credentials
-    emailInput.value = 'Admin@lal.com';
-    passInput.value  = 'admin';
+
 
     // Show/hide password toggle
     toggleBtn.addEventListener('click', () => {
