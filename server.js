@@ -47,8 +47,8 @@ if (!g.__db_pool) {
   if (dbType === 'mysql') {
     const mysql2 = require('mysql2/promise');
     const myPool = mysql2.createPool(dbUrl
-      ? { uri: dbUrl, waitForConnections: true, connectionLimit: 5 }
-      : { host: process.env.DB_HOST, port: +(process.env.DB_PORT || 3306), user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: process.env.DB_NAME, waitForConnections: true, connectionLimit: 5 }
+      ? { uri: dbUrl, waitForConnections: true, connectionLimit: 5, charset: 'utf8mb4_unicode_ci' }
+      : { host: process.env.DB_HOST, port: +(process.env.DB_PORT || 3306), user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: process.env.DB_NAME, waitForConnections: true, connectionLimit: 5, charset: 'utf8mb4_unicode_ci' }
     );
     g.__db_pool = {
       async query(text, params) {
@@ -136,7 +136,7 @@ const SCHEMA = [
   `CREATE INDEX idx_dt_date ON daily_tasks (entry_date)`,
   `CREATE TABLE IF NOT EXISTS clients (id VARCHAR(16) PRIMARY KEY, name VARCHAR(255) NOT NULL, contact_person VARCHAR(255) DEFAULT '', contact_number VARCHAR(64) DEFAULT '', email VARCHAR(255) DEFAULT '', industry VARCHAR(128) DEFAULT '', status VARCHAR(32) DEFAULT 'active', notes TEXT DEFAULT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS dev_backups (id VARCHAR(64) PRIMARY KEY, label VARCHAR(128) NOT NULL DEFAULT '', data TEXT NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, expires_at DATETIME NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-  `CREATE TABLE IF NOT EXISTS user_sessions (sid VARCHAR(128) PRIMARY KEY, data TEXT NOT NULL, expires_at DATETIME NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS user_sessions (sid VARCHAR(128) PRIMARY KEY, data TEXT NOT NULL, expires_at DATETIME NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 ];
 
 async function seedIfEmpty() {
@@ -153,6 +153,15 @@ async function seedIfEmpty() {
   console.log('[db] Admin user seeded:', adminEmail);
 }
 
+async function fixCollations() {
+  if (!USE_DB) return;
+  const tables = ['users','delegations','masters','clients','checklist_completions','daily_tasks','leaves','user_sessions'];
+  for (const t of tables) {
+    try { await pool.query(`ALTER TABLE ${t} CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`); }
+    catch (_) {}
+  }
+}
+
 async function ensureSchema() {
   if (!USE_DB) return;
   if (g.__pg_schema_ready) return g.__pg_schema_ready;
@@ -166,6 +175,7 @@ async function ensureSchema() {
       }
     }
     await seedIfEmpty();
+    fixCollations().catch(() => {});
   })();
   return g.__pg_schema_ready;
 }
