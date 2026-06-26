@@ -253,7 +253,8 @@ window.Pages.login = {
     const btnText     = el.querySelector('#login-btn-text');
     const btnLoading  = el.querySelector('#login-btn-loading');
 
-
+    // Force-clear fields after Chrome autofill (runs after browser fills them)
+    setTimeout(() => { if (emailInput) emailInput.value = ''; if (passInput) passInput.value = ''; }, 200);
 
     // Show/hide password toggle
     toggleBtn.addEventListener('click', () => {
