@@ -119,7 +119,7 @@ window.Pages.login = {
                     type="text"
                     required
                     placeholder="Enter your email or ID"
-                    autocomplete="email"
+                    autocomplete="off"
                     style="
                       width: 100%; box-sizing: border-box;
                       padding: 10px 12px 10px 36px;
@@ -152,7 +152,7 @@ window.Pages.login = {
                     type="password"
                     required
                     placeholder="Enter your password"
-                    autocomplete="current-password"
+                    autocomplete="new-password"
                     style="
                       width: 100%; box-sizing: border-box;
                       padding: 10px 42px 10px 36px;
