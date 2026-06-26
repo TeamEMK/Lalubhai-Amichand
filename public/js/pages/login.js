@@ -286,23 +286,28 @@ window.Pages.login = {
       const password = passInput.value;
 
       try {
-        const res  = await (window.Utils && window.Utils.apiFetch
-          ? window.Utils.apiFetch('/api/auth/login', {
-              method: 'POST',
-              body:   JSON.stringify({ email, password }),
-            })
-          : fetch('/api/auth/login', {
-              method:  'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body:    JSON.stringify({ email, password }),
-            }).then(async r => {
-              if (!r.ok) throw new Error('Invalid email or password');
-              return r.json();
-            })
-        );
+        let res;
+        if (window.Utils && window.Utils.apiFetch) {
+          const raw = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+          const json = await raw.json();
+          if (!raw.ok) throw new Error(json.error || 'Invalid email or password');
+          res = json;
+        } else {
+          const raw = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+          const json = await raw.json();
+          if (!raw.ok) throw new Error(json.error || 'Invalid email or password');
+          res = json;
+        }
 
-        // res is already the parsed JSON when Utils.apiFetch is used
-        const data = res && res.user ? res : (res.json ? await res.json() : res);
+        const data = res;
 
         window.currentUser = data.user;
 
