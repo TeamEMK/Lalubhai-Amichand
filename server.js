@@ -450,6 +450,8 @@ app.post('/api/auth/login', async (req, res) => {
     }
     if (!user) {
       try {
+        // Auto-seed admin on first login attempt if store is empty
+        await seedJsonFallback();
         const store = await readStore();
         user = (store.users || []).find(u => u.email === email && u.active !== false) || null;
       } catch (err) {
