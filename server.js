@@ -450,8 +450,8 @@ app.post('/api/auth/login', async (req, res) => {
         const roles = Array.isArray(adminUser.roles)
           ? adminUser.roles
           : String(adminUser.roles || '').split(',').map(r => r.trim()).filter(Boolean);
-        req.session.user = { id: adminUser.id, name: adminUser.name, email: adminUser.email, phone: adminUser.phone || '', department: adminUser.department || '', roles, picture: adminUser.picture || null };
-        return res.json({ user: req.session.user });
+        req.session.user = { id: adminUser.id, name: adminUser.name, email: adminUser.email, phone: adminUser.phone || '', department: adminUser.department || '', roles };
+        return res.json({ user: { ...req.session.user, picture: adminUser.picture || null } });
       }
     }
 
@@ -507,9 +507,8 @@ app.post('/api/auth/login', async (req, res) => {
       phone: user.phone || '',
       department: user.department || '',
       roles,
-      picture: user.picture || null,
     };
-    return res.json({ user: req.session.user });
+    return res.json({ user: { ...req.session.user, picture: user.picture || null } });
   } catch (err) {
     console.error('[auth/login]', err.message);
     return res.status(500).json({ error: err.message });
@@ -521,8 +520,23 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/auth/session', (req, res) => {
-  res.json({ user: req.session?.user || null });
+app.get('/api/auth/session', async (req, res) => {
+  const u = req.session?.user || null;
+  if (!u) return res.json({ user: null });
+  // fetch picture separately (not stored in cookie to keep session small)
+  try {
+    let picture = null;
+    if (USE_DB) {
+      const rows = await q('SELECT picture FROM users WHERE id = $1', [u.id]);
+      picture = rows[0]?.picture || null;
+    } else {
+      const store = await readStoreJson();
+      picture = (store.users || []).find(x => x.id === u.id)?.picture || null;
+    }
+    return res.json({ user: { ...u, picture } });
+  } catch {
+    return res.json({ user: u });
+  }
 });
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
