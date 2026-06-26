@@ -1,10 +1,19 @@
 window.Utils = {
   async apiFetch(url, opts={}) {
-    const res = await fetch(url, { headers:{'Content-Type':'application/json'}, ...opts });
-    if (res.status===401) { window.location.hash='#login'; return null; }
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error||'Error');
-    return data;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    try {
+      const res = await fetch(url, { headers:{'Content-Type':'application/json'}, signal: controller.signal, ...opts });
+      clearTimeout(timer);
+      if (res.status===401) { window.location.hash='#login'; return null; }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error||'Error');
+      return data;
+    } catch(e) {
+      clearTimeout(timer);
+      if (e.name === 'AbortError') throw new Error('Request timed out: ' + url);
+      throw e;
+    }
   },
   showToast(msg, type='success') {
     const toast = document.createElement('div');

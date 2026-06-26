@@ -1,8 +1,7 @@
 'use strict';
 require('dotenv').config({ path: require('path').join(__dirname, '.env.local') });
 const express = require('express');
-const session = require('express-session');
-const FileStore = require('session-file-store')(session);
+const cookieSession = require('cookie-session');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 
@@ -382,22 +381,14 @@ async function createBackup(label='auto') {
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use(session({
-  store: new FileStore({
-    path: path.join(__dirname, 'sessions'),
-    ttl: 30 * 24 * 60 * 60,
-    retries: 1,
-    logFn: () => {},
-  }),
-  secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-change-me',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 30 * 24 * 60 * 60 * 1000,
-  },
+app.set('trust proxy', 1);
+app.use(cookieSession({
+  name: 'session',
+  keys: [process.env.NEXTAUTH_SECRET || 'fallback-secret-change-me'],
+  maxAge: 30 * 24 * 60 * 60 * 1000,
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: false,
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -526,7 +517,8 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.post('/api/auth/logout', (req, res) => {
-  req.session.destroy(() => res.json({ ok: true }));
+  req.session = null;
+  res.json({ ok: true });
 });
 
 app.get('/api/auth/session', (req, res) => {
