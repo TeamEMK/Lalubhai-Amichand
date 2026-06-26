@@ -136,6 +136,7 @@ const SCHEMA = [
   `CREATE INDEX idx_dt_date ON daily_tasks (entry_date)`,
   `CREATE TABLE IF NOT EXISTS clients (id VARCHAR(16) PRIMARY KEY, name VARCHAR(255) NOT NULL, contact_person VARCHAR(255) DEFAULT '', contact_number VARCHAR(64) DEFAULT '', email VARCHAR(255) DEFAULT '', industry VARCHAR(128) DEFAULT '', status VARCHAR(32) DEFAULT 'active', notes TEXT DEFAULT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS dev_backups (id VARCHAR(64) PRIMARY KEY, label VARCHAR(128) NOT NULL DEFAULT '', data TEXT NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, expires_at DATETIME NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS user_sessions (sid VARCHAR(128) PRIMARY KEY, data TEXT NOT NULL, expires_at DATETIME NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 async function seedIfEmpty() {
@@ -377,12 +378,50 @@ async function createBackup(label='auto') {
   return id;
 }
 
+// ── DB-backed session store (falls back to MemoryStore if no DB) ──────────────
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+class DbSessionStore extends session.Store {
+  async _ensureTable() {
+    try {
+      await pool.query(
+        `CREATE TABLE IF NOT EXISTS user_sessions (sid VARCHAR(128) PRIMARY KEY, data TEXT NOT NULL, expires_at DATETIME NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+      );
+    } catch {}
+  }
+  get(sid, cb) {
+    pool.query('SELECT data, expires_at FROM user_sessions WHERE sid = $1', [sid])
+      .then(({ rows }) => {
+        if (!rows.length) return cb(null, null);
+        if (new Date(rows[0].expires_at) < new Date()) {
+          this.destroy(sid, () => {});
+          return cb(null, null);
+        }
+        try { cb(null, JSON.parse(rows[0].data)); } catch { cb(null, null); }
+      }).catch(() => cb(null, null));
+  }
+  set(sid, sess, cb) {
+    const exp = new Date(Date.now() + SESSION_TTL_MS);
+    const data = JSON.stringify(sess);
+    pool.query(
+      `INSERT INTO user_sessions (sid, data, expires_at) VALUES ($1,$2,$3) ON CONFLICT (sid) DO UPDATE SET data=$4, expires_at=$5`,
+      [sid, data, exp, data, exp]
+    ).then(() => cb(null)).catch(() => cb(null));
+  }
+  destroy(sid, cb) {
+    pool.query('DELETE FROM user_sessions WHERE sid = $1', [sid])
+      .then(() => cb(null)).catch(() => cb(null));
+  }
+  touch(sid, sess, cb) { this.set(sid, sess, cb); }
+}
+
 // ── App setup ─────────────────────────────────────────────────────────────────
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.set('trust proxy', 1);
 app.use(session({
+  store: USE_DB ? new DbSessionStore() : undefined,
   secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-change-me',
   resave: false,
   saveUninitialized: false,
@@ -390,7 +429,7 @@ app.use(session({
     httpOnly: true,
     sameSite: 'lax',
     secure: false,
-    maxAge: 30 * 24 * 60 * 60 * 1000,
+    maxAge: SESSION_TTL_MS,
   },
 }));
 app.use(express.static(path.join(__dirname, 'public')));
