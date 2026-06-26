@@ -1,7 +1,7 @@
 'use strict';
 require('dotenv').config({ path: require('path').join(__dirname, '.env.local') });
 const express = require('express');
-const cookieSession = require('cookie-session');
+const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 
@@ -382,13 +382,16 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.set('trust proxy', 1);
-app.use(cookieSession({
-  name: 'session',
-  keys: [process.env.NEXTAUTH_SECRET || 'fallback-secret-change-me'],
-  maxAge: 30 * 24 * 60 * 60 * 1000,
-  httpOnly: true,
-  sameSite: 'lax',
-  secure: false,
+app.use(session({
+  secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-change-me',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: false,
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+  },
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -516,8 +519,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.post('/api/auth/logout', (req, res) => {
-  req.session = null;
-  res.json({ ok: true });
+  req.session.destroy(() => res.json({ ok: true }));
 });
 
 app.get('/api/auth/session', async (req, res) => {
