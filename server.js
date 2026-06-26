@@ -942,20 +942,27 @@ app.post('/api/users', requireAuth, async (req, res) => {
     return res.status(201).json(newUser);
   }
 
-  await ensureSchema();
-  const last = await q('SELECT id FROM users ORDER BY id DESC LIMIT 1');
-  const lastNum = last.length ? parseInt(last[0].id.replace('U','')) : 0;
-  const id = 'U'+(lastNum+1).toString().padStart(3,'0');
-  const roles = body.roles?.length ? body.roles : ['User'];
-  const hash = body.password ? await bcrypt.hash(body.password, 10) : null;
-  await pool.query('INSERT INTO users (id,name,email,phone,department,roles,active,password_hash,created_at) VALUES ($1,$2,$3,$4,$5,$6,1,$7,NOW())', [id,body.name.trim(),body.email.trim(),body.phone||'',body.department||'',roles.join(','),hash]);
-  if (body.picture) {
-    try { await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS picture TEXT DEFAULT NULL'); } catch {}
-    await pool.query('UPDATE users SET picture=$1 WHERE id=$2', [body.picture,id]);
+  try {
+    await ensureSchema();
+    const ex = await q('SELECT id FROM users WHERE email = $1', [body.email.trim().toLowerCase()]);
+    if (ex.length) return res.status(400).json({ error: 'Email already exists' });
+    const last = await q('SELECT id FROM users ORDER BY id DESC LIMIT 1');
+    const lastNum = last.length ? (parseInt((last[0].id||'U000').replace(/[^0-9]/g,''))||0) : 0;
+    const id = 'U'+(lastNum+1).toString().padStart(3,'0');
+    const roles = body.roles?.length ? body.roles : ['User'];
+    const hash = body.password ? await bcrypt.hash(body.password, 10) : null;
+    await pool.query('INSERT INTO users (id,name,email,phone,department,roles,active,password_hash,created_at) VALUES ($1,$2,$3,$4,$5,$6,1,$7,NOW())', [id,body.name.trim(),body.email.trim().toLowerCase(),body.phone||'',body.department||'',roles.join(','),hash]);
+    if (body.picture) {
+      try { await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS picture TEXT DEFAULT NULL'); } catch {}
+      await pool.query('UPDATE users SET picture=$1 WHERE id=$2', [body.picture,id]);
+    }
+    const result = await q('SELECT * FROM users WHERE id = $1', [id]);
+    syncUsers_gs().catch(()=>{});
+    return res.status(201).json(result[0]);
+  } catch(e) {
+    console.error('POST /api/users error:', e.message);
+    return res.status(500).json({ error: e.message || 'Failed to create user' });
   }
-  const result = await q('SELECT * FROM users WHERE id = $1', [id]);
-  syncUsers_gs().catch(()=>{});
-  return res.status(201).json(result[0]);
 });
 
 app.patch('/api/users', requireAuth, async (req, res) => {

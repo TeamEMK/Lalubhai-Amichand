@@ -136,10 +136,16 @@ window.Pages.users = (() => {
     if (_pictureChanged) payload.picture = _picture;
 
     try {
-      await Utils.apiFetch('/api/users', {
+      const result = await Utils.apiFetch('/api/users', {
         method: _editingUser ? 'PATCH' : 'POST',
         body: JSON.stringify(payload),
       });
+      if (!result) {
+        _saving = false;
+        renderModal();
+        Utils.showToast('Session expired — please log in again.', 'error');
+        return;
+      }
       _modalOpen      = false;
       _saving         = false;
       _picture        = null;
