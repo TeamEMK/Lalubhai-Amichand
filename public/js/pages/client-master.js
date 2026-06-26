@@ -229,12 +229,46 @@ window.Pages['client-master'] = (() => {
   function _pmFiltered() {
     const t = _pmSearch.trim().toLowerCase();
     if (!t) return _list;
-    return _list.filter(v => v.name.toLowerCase().includes(t) || (v.mobile||'').includes(t));
+    return _list.filter(v =>
+      v.name.toLowerCase().includes(t) ||
+      (v.mobile||'').includes(t) ||
+      (v.contact_number||'').includes(t)
+    );
   }
 
   function _renderPaymentTab() {
     const suggestions = _pmFiltered();
-    const showDrop    = _pmDropOpen && suggestions.length > 0;
+    const showDrop    = _pmDropOpen && _pmSearch.trim() && suggestions.length > 0;
+
+    // Vendor cards list shown when no vendor is selected
+    const vendorListCards = !_pmSelected ? `
+      <div style="margin-top:20px;">
+        <div style="font-size:12px;font-weight:600;color:#94a3b8;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;">
+          All Vendors (${_list.length})
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;">
+          ${_list.length === 0
+            ? `<p style="color:#94a3b8;font-size:13px;grid-column:1/-1;text-align:center;padding:20px 0;">No vendors added yet.</p>`
+            : suggestions.map(v => `
+              <div class="pm-opt" data-id="${v.id}" style="
+                background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;
+                padding:14px 16px;cursor:pointer;transition:border-color .15s,box-shadow .15s;
+                display:flex;align-items:center;gap:12px;"
+                onmouseenter="this.style.borderColor='#C4714A';this.style.boxShadow='0 4px 16px rgba(196,113,74,.12)'"
+                onmouseleave="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'">
+                <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#C4714A,#D4895A);display:grid;place-items:center;flex-shrink:0;">
+                  <span style="color:#fff;font-weight:700;font-size:15px;">${esc(v.name.charAt(0).toUpperCase())}</span>
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(v.name)}</div>
+                  <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${esc(v.mobile||v.contact_number||'No mobile')} ${v.state ? '· '+esc(v.state) : ''}</div>
+                </div>
+                <span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;flex-shrink:0;
+                  background:${v.status==='active'?'#ecfdf5':'#f1f5f9'};
+                  color:${v.status==='active'?'#059669':'#64748b'};">${v.status==='active'?'Active':'Inactive'}</span>
+              </div>`).join('')}
+        </div>
+      </div>` : '';
 
     const detailCard = _pmSelected ? `
       <div style="border-radius:14px;border:1.5px solid #e2e8f0;overflow:hidden;margin-top:24px;">
@@ -288,14 +322,7 @@ window.Pages['client-master'] = (() => {
             ${_infoRow('Branch',        _pmSelected.branch_name)}
           </div>
         </div>
-      </div>` : `
-      <div style="margin-top:40px;text-align:center;padding:40px;">
-        <div style="width:56px;height:56px;border-radius:16px;background:#f1f5f9;display:grid;place-items:center;margin:0 auto 14px;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        </div>
-        <div style="font-size:14px;font-weight:600;color:#475569;margin-bottom:6px;">Search for a vendor</div>
-        <div style="font-size:12px;color:#94a3b8;">Type vendor name above to view their full details</div>
-      </div>`;
+      </div>` : '';
 
     return `
       <div style="max-width:780px;margin:0 auto;">
@@ -331,7 +358,7 @@ window.Pages['client-master'] = (() => {
           </div>` : ''}
         </div>
 
-        ${detailCard}
+        ${_pmSelected ? detailCard : vendorListCards}
       </div>`;
   }
 
