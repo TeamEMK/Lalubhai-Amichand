@@ -46,10 +46,14 @@ if (!g.__db_pool) {
 
   if (dbType === 'mysql') {
     const mysql2 = require('mysql2/promise');
-    const myPool = mysql2.createPool(dbUrl
-      ? { uri: dbUrl, waitForConnections: true, connectionLimit: 5, charset: 'utf8mb4_unicode_ci' }
-      : { host: process.env.DB_HOST, port: +(process.env.DB_PORT || 3306), user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: process.env.DB_NAME, waitForConnections: true, connectionLimit: 5, charset: 'utf8mb4_unicode_ci' }
-    );
+    const poolOpts = dbUrl
+      ? { uri: dbUrl, waitForConnections: true, connectionLimit: 5 }
+      : { host: process.env.DB_HOST, port: +(process.env.DB_PORT || 3306), user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: process.env.DB_NAME, waitForConnections: true, connectionLimit: 5 };
+    const myPool = mysql2.createPool(poolOpts);
+    // Normalize collation on every new connection
+    myPool.pool.on('connection', conn => {
+      conn.query("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci'", () => {});
+    });
     g.__db_pool = {
       async query(text, params) {
         if (WRITE_RE.test(text)) bumpStoreVersion();
@@ -746,9 +750,9 @@ app.patch('/api/delegations', requireAuth, async (req, res) => {
       const transferredBy = req.session?.user?.name||null;
       if (taskIds?.length) {
         const placeholders = taskIds.map((_,i)=>'$'+(i+4)).join(',');
-        await pool.query(`UPDATE delegations SET transferred_from=doer, transferred_by=$1, doer=$2, doer_id=$3 WHERE id IN (${placeholders}) AND status != 'done'`, [transferredBy,toDoer,toDoerId||null,...taskIds]);
+        await pool.query(`UPDATE delegations SET transferred_from=doer, transferred_by=$1, doer=$2, doer_id=$3 WHERE id IN (${placeholders}) AND BINARY status != 'done'`, [transferredBy,toDoer,toDoerId||null,...taskIds]);
       } else {
-        await pool.query(`UPDATE delegations SET transferred_from=doer, transferred_by=$1, doer=$2, doer_id=$3 WHERE doer=$4 AND status!='done'`, [transferredBy,toDoer,toDoerId||null,fromDoer]);
+        await pool.query(`UPDATE delegations SET transferred_from=doer, transferred_by=$1, doer=$2, doer_id=$3 WHERE doer=$4 AND BINARY status!='done'`, [transferredBy,toDoer,toDoerId||null,fromDoer]);
       }
       return res.json({ success:true });
     }
@@ -761,9 +765,10 @@ app.patch('/api/delegations', requireAuth, async (req, res) => {
       else { status='revise_requested'; reviseAction='pending'; }
     } else if (status==='pending'&&body._denyRevise) { reviseAction='denied'; }
 
+    const completedAt = status === 'done' ? new Date() : null;
     await pool.query(
-      `UPDATE delegations SET status=COALESCE($1,status), description=COALESCE($2,description), due_date=COALESCE($3,due_date), client=COALESCE($4,client), priority=COALESCE($5,priority), approval=COALESCE($6,approval), url=COALESCE($7,url), remarks=COALESCE($8,remarks), revise_action=COALESCE($9,revise_action), completed_at=CASE WHEN $10='done' THEN NOW() ELSE completed_at END WHERE id=$11`,
-      [status??null, body.description??null, body.dueDate??null, body.client??null, body.priority??null, body.approval??null, body.url??null, body.remarks??null, reviseAction, status, body.id]
+      `UPDATE delegations SET status=COALESCE($1,status), description=COALESCE($2,description), due_date=COALESCE($3,due_date), client=COALESCE($4,client), priority=COALESCE($5,priority), approval=COALESCE($6,approval), url=COALESCE($7,url), remarks=COALESCE($8,remarks), revise_action=COALESCE($9,revise_action), completed_at=COALESCE($10,completed_at) WHERE id=$11`,
+      [status??null, body.description??null, body.dueDate??null, body.client??null, body.priority??null, body.approval??null, body.url??null, body.remarks??null, reviseAction, completedAt, body.id]
     );
     const result = await q('SELECT * FROM delegations WHERE id = $1', [body.id]);
     if (!result.length) return res.status(404).json({ error:'Not found' });
