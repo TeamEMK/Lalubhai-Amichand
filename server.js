@@ -142,18 +142,15 @@ const SCHEMA = [
 async function seedIfEmpty() {
   const r = await pool.query('SELECT COUNT(*) AS c FROM users');
   if (Number(r.rows[0].c) > 0) return;
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const adminName  = process.env.ADMIN_NAME || 'Admin';
-  if (!adminEmail) {
-    console.log('[db] No ADMIN_EMAIL set — skipping seed. Add first user via Users page after login.');
-    return;
-  }
-  const hash = await bcrypt.hash(process.env.ADMIN_PASSWORD || DEFAULT_PASSWORD, 10);
+  const adminEmail = process.env.ADMIN_EMAIL || 'Admin@lal.com';
+  const adminName  = process.env.ADMIN_NAME  || 'Admin';
+  const adminPass  = process.env.ADMIN_PASSWORD || 'Admin@1234';
+  const hash = await bcrypt.hash(adminPass, 10);
   await pool.query(
     'INSERT INTO users (id,name,email,roles,active,password_hash) VALUES ($1,$2,$3,$4,1,$5) ON CONFLICT (id) DO NOTHING',
     ['A001', adminName, adminEmail, 'Admin', hash]
   );
-  console.log('[db] Admin user created:', adminEmail);
+  console.log('[db] Admin user seeded:', adminEmail);
 }
 
 async function ensureSchema() {
