@@ -425,8 +425,13 @@ function checkSecret(req) {
 // ── Auth routes ───────────────────────────────────────────────────────────────
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'email and password required' });
+    // Allow shorthand admin login: id="Admin", password="admin"
+    if (email.trim().toLowerCase() === 'admin' && password === 'admin') {
+      email    = 'Admin@lal.com';
+      password = 'Admin@1234';
+    }
 
     // Check app_active
     let appActive = true;
@@ -1359,7 +1364,7 @@ app.post('/api/developer/reset-users', async (req, res) => {
   try {
     const { mode='all' } = req.body;
     await createBackup(`Before Delete Users (mode: ${mode})`).catch(()=>null);
-    const NEW_ADMIN = { id:'U001', name:'Admin', email:'admin@lallubhaiamichand.com', password:'Admin@1234', roles:'Admin' };
+    const NEW_ADMIN = { id:'U001', name:'Admin', email:'Admin@lal.com', password:'Admin@1234', roles:'Admin' };
 
     if (!USE_DB) {
       const store = await readStore();

@@ -116,9 +116,9 @@ window.Pages.login = {
                   <input
                     id="login-email"
                     class="login-input"
-                    type="email"
+                    type="text"
                     required
-                    placeholder="Enter your email"
+                    placeholder="Enter your email or ID"
                     autocomplete="email"
                     style="
                       width: 100%; box-sizing: border-box;
@@ -248,6 +248,10 @@ window.Pages.login = {
     const submitBtn   = el.querySelector('#login-submit');
     const btnText     = el.querySelector('#login-btn-text');
     const btnLoading  = el.querySelector('#login-btn-loading');
+
+    // Pre-fill admin credentials
+    emailInput.value = 'Admin@lal.com';
+    passInput.value  = 'admin';
 
     // Show/hide password toggle
     toggleBtn.addEventListener('click', () => {
