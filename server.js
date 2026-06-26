@@ -1,44 +1,95 @@
 'use strict';
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: require('path').join(__dirname, '.env.local') });
 const express = require('express');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
 const bcrypt = require('bcryptjs');
 const path = require('path');
 
-// ── DB / Store (CommonJS-compatible dynamic require wrappers) ─────────────────
-const pg = require('pg');
-
 const DEFAULT_PASSWORD = 'India@123';
 const FMS_ENABLED = false;
 
-// ── Postgres pool ─────────────────────────────────────────────────────────────
 const g = global;
-if (!g.__pg_pool) {
-  const url = process.env.POSTGRES_URL || process.env.DATABASE_URL;
-  const useSsl = !!url && !/railway\.internal|localhost|127\.0\.0\.1/.test(url);
-  g.__pg_pool = url
-    ? new pg.Pool({ connectionString: url, ssl: useSsl ? { rejectUnauthorized: false } : false, max: 5, idleTimeoutMillis: 30000 })
-    : null;
-  g.__pg_schema_ready = null;
-}
-const pgPool = g.__pg_pool;
-
 if (!g.__store_version) g.__store_version = 0;
 function getStoreVersion() { return g.__store_version; }
 function bumpStoreVersion() { g.__store_version++; }
-
 const WRITE_RE = /^\s*(INSERT|UPDATE|DELETE|TRUNCATE)\b/i;
-const pool = pgPool ? {
-  query(text, params) {
-    if (WRITE_RE.test(text)) bumpStoreVersion();
-    return pgPool.query(text, params);
-  },
-  connect: (...a) => pgPool.connect(...a),
-  end: () => pgPool.end(),
-} : {
+
+// ── PostgreSQL→MySQL query translator (used when DB_TYPE=mysql) ───────────────
+function pgToMysql(text) {
+  let t = text;
+  // Remove pg type casts: ::timestamptz ::int ::text ::date etc.
+  t = t.replace(/::[a-z]+(?:\[\])?/gi, '');
+  // Reserved-word columns "key"/"value" → backticks
+  t = t.replace(/"key"/g, '`key`').replace(/"value"/g, '`value`');
+  // EXCLUDED.col → VALUES(col)
+  t = t.replace(/EXCLUDED\.(\w+)/g, 'VALUES($1)');
+  // table.column in upsert → bare column
+  t = t.replace(/\b[a-z_]+\.([a-z_]+)\b/g, '$1');
+  // ON CONFLICT (...) DO NOTHING → INSERT IGNORE
+  if (/ON CONFLICT\s*\([^)]+\)\s*DO NOTHING/i.test(t)) {
+    t = t.replace(/\bINSERT INTO\b/i, 'INSERT IGNORE INTO');
+    t = t.replace(/\s*ON CONFLICT\s*\([^)]+\)\s*DO NOTHING/gi, '');
+  }
+  // ON CONFLICT (...) DO UPDATE SET → ON DUPLICATE KEY UPDATE
+  t = t.replace(/ON CONFLICT\s*\([^)]+\)\s*DO UPDATE SET\s*/gi, 'ON DUPLICATE KEY UPDATE ');
+  // $N → ?
+  t = t.replace(/\$\d+/g, '?');
+  return t;
+}
+
+// ── Unified DB pool (MySQL or PostgreSQL) ─────────────────────────────────────
+if (!g.__db_pool) {
+  const dbUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+  const dbType = process.env.DB_TYPE
+    || (dbUrl ? (dbUrl.startsWith('mysql') ? 'mysql' : 'postgres') : null)
+    || (process.env.DB_HOST ? 'mysql' : null);
+
+  if (dbType === 'mysql') {
+    const mysql2 = require('mysql2/promise');
+    const myPool = mysql2.createPool(dbUrl
+      ? { uri: dbUrl, waitForConnections: true, connectionLimit: 5 }
+      : { host: process.env.DB_HOST, port: +(process.env.DB_PORT || 3306), user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: process.env.DB_NAME, waitForConnections: true, connectionLimit: 5 }
+    );
+    g.__db_pool = {
+      async query(text, params) {
+        if (WRITE_RE.test(text)) bumpStoreVersion();
+        const [rows] = await myPool.execute(pgToMysql(text), params || []);
+        return { rows: Array.isArray(rows) ? rows : [], rowCount: rows.affectedRows || 0 };
+      },
+      async connect() {
+        const conn = await myPool.getConnection();
+        return {
+          async query(text, params) {
+            if (WRITE_RE.test(text)) bumpStoreVersion();
+            const [rows] = await conn.execute(pgToMysql(text), params || []);
+            return { rows: Array.isArray(rows) ? rows : [], rowCount: rows.affectedRows || 0 };
+          },
+          release() { conn.release(); },
+        };
+      },
+      end() { return myPool.end(); },
+    };
+  } else if (dbType === 'postgres') {
+    const pg = require('pg');
+    const pgUrl = dbUrl || (process.env.DB_HOST
+      ? `postgresql://${encodeURIComponent(process.env.DB_USER||'')}:${encodeURIComponent(process.env.DB_PASSWORD||'')}@${process.env.DB_HOST}:${process.env.DB_PORT||5432}/${process.env.DB_NAME||'postgres'}`
+      : null);
+    if (pgUrl) {
+      const useSsl = !/railway\.internal|localhost|127\.0\.0\.1/.test(pgUrl);
+      const pgPool = new pg.Pool({ connectionString: pgUrl, ssl: useSsl ? { rejectUnauthorized: false } : false, max: 5, idleTimeoutMillis: 30000 });
+      g.__db_pool = {
+        query: (t, p) => { if (WRITE_RE.test(t)) bumpStoreVersion(); return pgPool.query(t, p); },
+        connect: (...a) => pgPool.connect(...a),
+        end: () => pgPool.end(),
+      };
+    } else { g.__db_pool = null; }
+  } else { g.__db_pool = null; }
+  g.__pg_schema_ready = null;
+}
+const pool = g.__db_pool || {
   query: async () => ({ rows: [], rowCount: 0 }),
-  connect: async () => { throw new Error('Postgres not configured'); },
+  connect: async () => { throw new Error('Database not configured'); },
   end: async () => {},
 };
 
@@ -64,87 +115,59 @@ async function sql(strings, ...values) {
 }
 
 const SCHEMA = [
-  `CREATE TABLE IF NOT EXISTS users (id VARCHAR(16) PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL UNIQUE, phone VARCHAR(64) DEFAULT '', department VARCHAR(128) DEFAULT '', roles VARCHAR(128) DEFAULT 'User', active SMALLINT NOT NULL DEFAULT 1, password_hash VARCHAR(255) DEFAULT NULL, picture TEXT DEFAULT NULL, force_logout_after TIMESTAMPTZ DEFAULT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
-  `CREATE INDEX IF NOT EXISTS idx_users_name ON users (name)`,
-  `CREATE TABLE IF NOT EXISTS delegations (id VARCHAR(16) PRIMARY KEY, description TEXT NOT NULL, doer_id VARCHAR(16), doer VARCHAR(255) NOT NULL DEFAULT '', delegated_by VARCHAR(16), due_date DATE, client VARCHAR(255) DEFAULT '', status VARCHAR(32) NOT NULL DEFAULT 'pending', type VARCHAR(32) NOT NULL DEFAULT 'delegation', priority VARCHAR(32) DEFAULT 'Low', approval VARCHAR(64) DEFAULT 'No Approval', url VARCHAR(500) DEFAULT '', remarks TEXT, completed_at TIMESTAMPTZ DEFAULT NULL, revise_action VARCHAR(32) DEFAULT NULL, transferred_by VARCHAR(255) DEFAULT NULL, transferred_from VARCHAR(255) DEFAULT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
-  `CREATE INDEX IF NOT EXISTS idx_del_doer ON delegations (doer)`,
-  `CREATE INDEX IF NOT EXISTS idx_del_status ON delegations (status)`,
-  `CREATE TABLE IF NOT EXISTS masters (id VARCHAR(16) PRIMARY KEY, task TEXT NOT NULL, assigned_to VARCHAR(255) DEFAULT '', frequency VARCHAR(32) NOT NULL DEFAULT 'Daily', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
-  `CREATE TABLE IF NOT EXISTS holidays (id VARCHAR(16) PRIMARY KEY, date DATE NOT NULL, name VARCHAR(255) NOT NULL, type VARCHAR(64) DEFAULT '')`,
-  `CREATE TABLE IF NOT EXISTS fms (id VARCHAR(16) PRIMARY KEY, client_name VARCHAR(255) NOT NULL, platforms TEXT, mobile VARCHAR(64) DEFAULT '', doer VARCHAR(255) DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
-  `CREATE TABLE IF NOT EXISTS fms_steps (fms_id VARCHAR(16) NOT NULL REFERENCES fms(id) ON DELETE CASCADE, step_index INT NOT NULL, planned TIMESTAMPTZ, actual TIMESTAMPTZ, PRIMARY KEY (fms_id, step_index))`,
-  `CREATE TABLE IF NOT EXISTS profile (user_id VARCHAR(16) PRIMARY KEY, notification_email VARCHAR(255) DEFAULT '')`,
-  `CREATE TABLE IF NOT EXISTS app_config ("key" VARCHAR(64) PRIMARY KEY, "value" TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS checklist_completions (id VARCHAR(16) PRIMARY KEY, master_id VARCHAR(16) NOT NULL, doer VARCHAR(255) DEFAULT '', completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), date DATE NOT NULL)`,
-  `CREATE INDEX IF NOT EXISTS idx_cc_master ON checklist_completions (master_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_cc_date ON checklist_completions (date)`,
-  `CREATE TABLE IF NOT EXISTS meetings (id VARCHAR(16) PRIMARY KEY, title VARCHAR(255) NOT NULL, meeting_date DATE NOT NULL, start_time VARCHAR(10) DEFAULT NULL, end_time VARCHAR(10) DEFAULT NULL, attendees TEXT DEFAULT NULL, notes TEXT DEFAULT NULL, created_by VARCHAR(255) DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
-  `CREATE INDEX IF NOT EXISTS idx_mtg_date ON meetings (meeting_date)`,
-  `CREATE TABLE IF NOT EXISTS leaves (id VARCHAR(16) PRIMARY KEY, user_id VARCHAR(16), user_name VARCHAR(255) NOT NULL, type VARCHAR(64) DEFAULT 'Leave', from_date DATE NOT NULL, to_date DATE NOT NULL, reason TEXT DEFAULT NULL, status VARCHAR(32) DEFAULT 'pending', approver VARCHAR(255) DEFAULT 'HOD', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), decided_at TIMESTAMPTZ DEFAULT NULL)`,
-  `CREATE TABLE IF NOT EXISTS daily_tasks (id VARCHAR(16) PRIMARY KEY, entry_date DATE NOT NULL, doer_id VARCHAR(16), doer VARCHAR(255) NOT NULL DEFAULT '', client VARCHAR(255) DEFAULT '', department VARCHAR(128) DEFAULT '', description TEXT DEFAULT NULL, minutes INT DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
-  `CREATE INDEX IF NOT EXISTS idx_dt_doer ON daily_tasks (doer_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_dt_date ON daily_tasks (entry_date)`,
-  `CREATE TABLE IF NOT EXISTS clients (id VARCHAR(16) PRIMARY KEY, name VARCHAR(255) NOT NULL, contact_person VARCHAR(255) DEFAULT '', contact_number VARCHAR(64) DEFAULT '', email VARCHAR(255) DEFAULT '', industry VARCHAR(128) DEFAULT '', status VARCHAR(32) DEFAULT 'active', notes TEXT DEFAULT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
-  `CREATE TABLE IF NOT EXISTS dev_backups (id VARCHAR(64) PRIMARY KEY, label VARCHAR(128) NOT NULL DEFAULT '', data TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), expires_at TIMESTAMPTZ NOT NULL)`,
-];
-
-const SEED_USERS = [
-  ['U001','Abhishek Jain','abhishek@e-marketing.io','9602684444','CXO','Admin'],
-  ['U002','Akhilesh Vyas','vyas.akhilesh@e-marketing.io','7048462985','Business Automation','Admin,HOD'],
-  ['U003','Akshita Jain','jain.akshita@e-marketing.io','7340302359','Social Media','User'],
-  ['U004','Aman Bejal','bejal.aman@e-marketing.io','6376724283','Graphic Designing','User'],
-  ['U005','Aman Pareek','pareek.aman@e-marketing.io','7507905684','Business Automation','Admin,User'],
-  ['U006','Ankit Ladha','ladha.ankit@e-marketing.io','7737270516','Google Ads','User'],
-  ['U007','Ashish Jha','seo@e-marketing.io','9024736048','SEO','User'],
-  ['U008','Bhanu Sharma','sharma.bhanu@e-marketing.io','9351842255','SEO','User'],
-  ['U009','Chetna Agrawal','chetna@e-marketing.io','8238999732','CXO','User'],
-  ['U010','Ching Thakral','googlexecutive@e-marketing.io','9988716423','Google Ads','User'],
-  ['U011','Divvy Jain','jain.divvy@e-marketing.io','8769533770','Meta Ads','User'],
-  ['U012','Divya Srivastava','srivastava.divya@e-marketing.io','9001798754','Graphic Designing','User'],
-  ['U013','Garvit Kedia','kedia.garvit@e-marketing.io','9782800257','Meta Ads','User'],
-  ['U014','Gaurav Gupta','gupta.gaurav@e-marketing.io','9155836021','Website Design & Development','User'],
-  ['U015','Harsh Daharwal','daharwal.harsh@e-marketing.io','9596896449','Business Automation','Admin,User'],
-  ['U016','Kritika Saini','saini.kritika@e-marketing.io','8696482750','Google Ads','User'],
-  ['U017','Kushagra Dubey','dubey.kushagra@e-marketing.io','8203058282','Meta Ads','User'],
-  ['U018','Mohit Kumawat','kumawat.mohit@e-marketing.io','6290552269','Content Writing','User'],
-  ['U019','Nikita Khandelwal','khandelwal.nikita@e-marketing.io','8306660792','MDO','Admin,User'],
-  ['U020','Nisha Madaan','madaan.nisha@e-marketing.io','9988820092','Google Ads','User'],
-  ['U021','Nupur Kothari','kothari.nupur@e-marketing.io','9314050398','Graphic Designing','User'],
-  ['U022','Pradhuman Kumar','pradhuman@e-marketing.io','7973006643','Google Ads','HOD'],
-  ['U023','Priya Saini','saini.priya@e-marketing.io','9652295500','SEO','User'],
-  ['U024','Purvi Saini','saini.purvi@e-marketing.io','9301878061','MDO','Admin,User'],
-  ['U025','Rahul Maharchandani','maharchandani.rahul@e-marketing.io','8302671330','AI','HOD'],
-  ['U026','Ritu Tilokani','tilokani.ritu@e-marketing.io','9772779351','Content Writing','HOD'],
-  ['U027','Sakshi Saini','sakshi.saini@e-marketing.io','9530000022','Google Ads','User'],
-  ['U028','Satish Khichi','khichi.satish@e-marketing.io','9530000023','Google Ads','User'],
-  ['U029','Saurav Pareek','pareek.saurav@e-marketing.io','9530000024','Social Media','User'],
-  ['U030','Swati Joshi','joshi.swati@e-marketing.io','9530000025','Content Writing','User'],
-  ['U031','Tushar Chauhan','chauhan.tushar@e-marketing.io','9530000026','Website Design & Development','User'],
-  ['U032','Vishal Jaga','mis1@e-marketing.io','00756492939','MDO','Admin'],
+  `CREATE TABLE IF NOT EXISTS users (id VARCHAR(16) PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL UNIQUE, phone VARCHAR(64) DEFAULT '', department VARCHAR(128) DEFAULT '', roles VARCHAR(128) DEFAULT 'User', active SMALLINT NOT NULL DEFAULT 1, password_hash VARCHAR(255) DEFAULT NULL, picture TEXT DEFAULT NULL, force_logout_after DATETIME DEFAULT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE INDEX idx_users_name ON users (name)`,
+  `CREATE TABLE IF NOT EXISTS delegations (id VARCHAR(16) PRIMARY KEY, description TEXT NOT NULL, doer_id VARCHAR(16), doer VARCHAR(255) NOT NULL DEFAULT '', delegated_by VARCHAR(16), due_date DATE, client VARCHAR(255) DEFAULT '', status VARCHAR(32) NOT NULL DEFAULT 'pending', type VARCHAR(32) NOT NULL DEFAULT 'delegation', priority VARCHAR(32) DEFAULT 'Low', approval VARCHAR(64) DEFAULT 'No Approval', url VARCHAR(500) DEFAULT '', remarks TEXT, completed_at DATETIME DEFAULT NULL, revise_action VARCHAR(32) DEFAULT NULL, transferred_by VARCHAR(255) DEFAULT NULL, transferred_from VARCHAR(255) DEFAULT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE INDEX idx_del_doer ON delegations (doer)`,
+  `CREATE INDEX idx_del_status ON delegations (status)`,
+  `CREATE TABLE IF NOT EXISTS masters (id VARCHAR(16) PRIMARY KEY, task TEXT NOT NULL, assigned_to VARCHAR(255) DEFAULT '', frequency VARCHAR(32) NOT NULL DEFAULT 'Daily', created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS holidays (id VARCHAR(16) PRIMARY KEY, date DATE NOT NULL, name VARCHAR(255) NOT NULL, type VARCHAR(64) DEFAULT '') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS fms (id VARCHAR(16) PRIMARY KEY, client_name VARCHAR(255) NOT NULL, platforms TEXT, mobile VARCHAR(64) DEFAULT '', doer VARCHAR(255) DEFAULT '', created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS fms_steps (fms_id VARCHAR(16) NOT NULL, step_index INT NOT NULL, planned DATETIME DEFAULT NULL, actual DATETIME DEFAULT NULL, PRIMARY KEY (fms_id, step_index), CONSTRAINT fk_fms_steps FOREIGN KEY (fms_id) REFERENCES fms(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS profile (user_id VARCHAR(16) PRIMARY KEY, notification_email VARCHAR(255) DEFAULT '') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  "CREATE TABLE IF NOT EXISTS app_config (`key` VARCHAR(64) PRIMARY KEY, `value` TEXT NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+  `CREATE TABLE IF NOT EXISTS checklist_completions (id VARCHAR(16) PRIMARY KEY, master_id VARCHAR(16) NOT NULL, doer VARCHAR(255) DEFAULT '', completed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, date DATE NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE INDEX idx_cc_master ON checklist_completions (master_id)`,
+  `CREATE INDEX idx_cc_date ON checklist_completions (date)`,
+  `CREATE TABLE IF NOT EXISTS meetings (id VARCHAR(16) PRIMARY KEY, title VARCHAR(255) NOT NULL, meeting_date DATE NOT NULL, start_time VARCHAR(10) DEFAULT NULL, end_time VARCHAR(10) DEFAULT NULL, attendees TEXT DEFAULT NULL, notes TEXT DEFAULT NULL, created_by VARCHAR(255) DEFAULT '', created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE INDEX idx_mtg_date ON meetings (meeting_date)`,
+  `CREATE TABLE IF NOT EXISTS leaves (id VARCHAR(16) PRIMARY KEY, user_id VARCHAR(16), user_name VARCHAR(255) NOT NULL, type VARCHAR(64) DEFAULT 'Leave', from_date DATE NOT NULL, to_date DATE NOT NULL, reason TEXT DEFAULT NULL, status VARCHAR(32) DEFAULT 'pending', approver VARCHAR(255) DEFAULT 'HOD', created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, decided_at DATETIME DEFAULT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS daily_tasks (id VARCHAR(16) PRIMARY KEY, entry_date DATE NOT NULL, doer_id VARCHAR(16), doer VARCHAR(255) NOT NULL DEFAULT '', client VARCHAR(255) DEFAULT '', department VARCHAR(128) DEFAULT '', description TEXT DEFAULT NULL, minutes INT DEFAULT 0, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE INDEX idx_dt_doer ON daily_tasks (doer_id)`,
+  `CREATE INDEX idx_dt_date ON daily_tasks (entry_date)`,
+  `CREATE TABLE IF NOT EXISTS clients (id VARCHAR(16) PRIMARY KEY, name VARCHAR(255) NOT NULL, contact_person VARCHAR(255) DEFAULT '', contact_number VARCHAR(64) DEFAULT '', email VARCHAR(255) DEFAULT '', industry VARCHAR(128) DEFAULT '', status VARCHAR(32) DEFAULT 'active', notes TEXT DEFAULT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS dev_backups (id VARCHAR(64) PRIMARY KEY, label VARCHAR(128) NOT NULL DEFAULT '', data TEXT NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, expires_at DATETIME NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 async function seedIfEmpty() {
-  const r = await pool.query('SELECT COUNT(*)::int AS c FROM users');
-  if (r.rows[0].c > 0) return;
-  console.log('[db] empty DB — seeding…');
-  const c = await pool.connect();
-  try {
-    await c.query('BEGIN');
-    for (const u of SEED_USERS) {
-      await c.query('INSERT INTO users (id,name,email,phone,department,roles,active) VALUES ($1,$2,$3,$4,$5,$6,1) ON CONFLICT (id) DO NOTHING', u);
-    }
-    await c.query("INSERT INTO profile (user_id,notification_email) VALUES ('U032','yourrealemail@gmail.com') ON CONFLICT (user_id) DO NOTHING");
-    await c.query('COMMIT');
-    console.log('[db] seed complete');
-  } catch (e) { await c.query('ROLLBACK'); throw e; }
-  finally { c.release(); }
+  const r = await pool.query('SELECT COUNT(*) AS c FROM users');
+  if (Number(r.rows[0].c) > 0) return;
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminName  = process.env.ADMIN_NAME || 'Admin';
+  if (!adminEmail) {
+    console.log('[db] No ADMIN_EMAIL set — skipping seed. Add first user via Users page after login.');
+    return;
+  }
+  const hash = await bcrypt.hash(process.env.ADMIN_PASSWORD || DEFAULT_PASSWORD, 10);
+  await pool.query(
+    'INSERT INTO users (id,name,email,roles,active,password_hash) VALUES ($1,$2,$3,$4,1,$5) ON CONFLICT (id) DO NOTHING',
+    ['A001', adminName, adminEmail, 'Admin', hash]
+  );
+  console.log('[db] Admin user created:', adminEmail);
 }
 
 async function ensureSchema() {
-  if (!USE_DB) return; // JSON store mode — no schema needed
+  if (!USE_DB) return;
   if (g.__pg_schema_ready) return g.__pg_schema_ready;
   g.__pg_schema_ready = (async () => {
-    for (const stmt of SCHEMA) await pool.query(stmt);
+    for (const stmt of SCHEMA) {
+      try { await pool.query(stmt); }
+      catch (e) {
+        const code = e.code || '';
+        // Ignore "already exists" for tables and indexes
+        if (!code.match(/^(ER_TABLE_EXISTS_ERROR|ER_DUP_KEYNAME|42P07|42710)$/) && !e.message?.includes('already exists')) throw e;
+      }
+    }
     await seedIfEmpty();
   })();
   return g.__pg_schema_ready;
@@ -156,9 +179,9 @@ function toDateStr(v) { if (!v) return null; if (v instanceof Date) return v.toI
 // ── JSON store (no-DB fallback) ───────────────────────────────────────────────
 const fs = require('fs').promises;
 const pathMod = require('path');
-const DATA_DIR = pathMod.join(process.cwd(), 'database');
+const DATA_DIR = pathMod.join(__dirname, 'database');
 const STORE_FILE = pathMod.join(DATA_DIR, 'store.json');
-const USE_DB = !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
+const USE_DB = !!g.__db_pool;
 
 const CACHE_TTL_MS = Number(process.env.STORE_CACHE_TTL_MS || 30000);
 if (!g.__store_cache) g.__store_cache = { data: null, version: -1, at: 0 };
@@ -167,47 +190,11 @@ function cloneData(data) {
   return typeof structuredClone === 'function' ? structuredClone(data) : JSON.parse(JSON.stringify(data));
 }
 
-const SEED_USERS_JSON = [
-  { name:'Abhishek Jain', email:'abhishek@e-marketing.io', phone:'9602684444', department:'CXO', roles:['Admin'] },
-  { name:'Akhilesh Vyas', email:'vyas.akhilesh@e-marketing.io', phone:'7048462985', department:'Business Automation', roles:['Admin','HOD'] },
-  { name:'Akshita Jain', email:'jain.akshita@e-marketing.io', phone:'7340302359', department:'Social Media', roles:['User'] },
-  { name:'Aman Bejal', email:'bejal.aman@e-marketing.io', phone:'6376724283', department:'Graphic Designing', roles:['User'] },
-  { name:'Aman Pareek', email:'pareek.aman@e-marketing.io', phone:'7507905684', department:'Business Automation', roles:['Admin','User'] },
-  { name:'Ankit Ladha', email:'ladha.ankit@e-marketing.io', phone:'7737270516', department:'Google Ads', roles:['User'] },
-  { name:'Ashish Jha', email:'seo@e-marketing.io', phone:'9024736048', department:'SEO', roles:['User'] },
-  { name:'Bhanu Sharma', email:'sharma.bhanu@e-marketing.io', phone:'9351842255', department:'SEO', roles:['User'] },
-  { name:'Chetna Agrawal', email:'chetna@e-marketing.io', phone:'8238999732', department:'CXO', roles:['User'] },
-  { name:'Ching Thakral', email:'googlexecutive@e-marketing.io', phone:'9988716423', department:'Google Ads', roles:['User'] },
-  { name:'Divvy Jain', email:'jain.divvy@e-marketing.io', phone:'8769533770', department:'Meta Ads', roles:['User'] },
-  { name:'Divya Srivastava', email:'srivastava.divya@e-marketing.io', phone:'9001798754', department:'Graphic Designing', roles:['User'] },
-  { name:'Garvit Kedia', email:'kedia.garvit@e-marketing.io', phone:'9782800257', department:'Meta Ads', roles:['User'] },
-  { name:'Gaurav Gupta', email:'gupta.gaurav@e-marketing.io', phone:'9155836021', department:'Website Design & Development', roles:['User'] },
-  { name:'Harsh Daharwal', email:'daharwal.harsh@e-marketing.io', phone:'9596896449', department:'Business Automation', roles:['Admin','User'] },
-  { name:'Kritika Saini', email:'saini.kritika@e-marketing.io', phone:'8696482750', department:'Google Ads', roles:['User'] },
-  { name:'Kushagra Dubey', email:'dubey.kushagra@e-marketing.io', phone:'8203058282', department:'Meta Ads', roles:['User'] },
-  { name:'Mohit Kumawat', email:'kumawat.mohit@e-marketing.io', phone:'6290552269', department:'Content Writing', roles:['User'] },
-  { name:'Nikita Khandelwal', email:'khandelwal.nikita@e-marketing.io', phone:'8306660792', department:'MDO', roles:['Admin','User'] },
-  { name:'Nisha Madaan', email:'madaan.nisha@e-marketing.io', phone:'9988820092', department:'Google Ads', roles:['User'] },
-  { name:'Nupur Kothari', email:'kothari.nupur@e-marketing.io', phone:'9314050398', department:'Graphic Designing', roles:['User'] },
-  { name:'Pradhuman Kumar', email:'pradhuman@e-marketing.io', phone:'7973006643', department:'Google Ads', roles:['HOD'] },
-  { name:'Priya Saini', email:'saini.priya@e-marketing.io', phone:'9652295500', department:'SEO', roles:['User'] },
-  { name:'Purvi Saini', email:'saini.purvi@e-marketing.io', phone:'9301878061', department:'MDO', roles:['Admin','User'] },
-  { name:'Rahul Maharchandani', email:'maharchandani.rahul@e-marketing.io', phone:'8302671330', department:'AI', roles:['HOD'] },
-  { name:'Ritu Tilokani', email:'tilokani.ritu@e-marketing.io', phone:'9772779351', department:'Content Writing', roles:['HOD'] },
-  { name:'Sakshi Saini', email:'sakshi.saini@e-marketing.io', phone:'9530000022', department:'Google Ads', roles:['User'] },
-  { name:'Satish Khichi', email:'khichi.satish@e-marketing.io', phone:'9530000023', department:'Google Ads', roles:['User'] },
-  { name:'Saurav Pareek', email:'pareek.saurav@e-marketing.io', phone:'9530000024', department:'Social Media', roles:['User'] },
-  { name:'Swati Joshi', email:'joshi.swati@e-marketing.io', phone:'9530000025', department:'Content Writing', roles:['User'] },
-  { name:'Tushar Chauhan', email:'chauhan.tushar@e-marketing.io', phone:'9530000026', department:'Website Design & Development', roles:['User'] },
-  { name:'Vishal Jaga', email:'mis1@e-marketing.io', phone:'00756492939', department:'MDO', roles:['Admin'] },
-];
-
 async function ensureStoreJson() {
   try { await fs.access(STORE_FILE); }
   catch {
     await fs.mkdir(DATA_DIR, { recursive: true });
-    const users = SEED_USERS_JSON.map((u, i) => ({ id: 'U' + (i+1).toString().padStart(3,'0'), ...u, active: true, createdAt: new Date().toISOString() }));
-    const initial = { users, delegations: [], masters: [], holidays: [], fms: [], approvals: { tasks:[], transfers:[], leaves:[] }, profile: { userId:'U032', notificationEmail:'yourrealemail@gmail.com' } };
+    const initial = { users: [], delegations: [], masters: [], holidays: [], fms: [], approvals: { tasks:[], transfers:[], leaves:[] }, profile: {} };
     await fs.writeFile(STORE_FILE, JSON.stringify(initial, null, 2));
   }
 }

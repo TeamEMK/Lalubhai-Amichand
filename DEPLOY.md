@@ -40,32 +40,31 @@ cd lallubhai-amichand
 ## 3. Configure environment
 
 ```bash
-cp .env.example .env.local
 nano .env.local
 ```
 
-Set:
+Set (use the full connection URL — this is required for the app to connect to the database):
 
 ```
-DB_HOST=87.106.200.69
-DB_PORT=5433
-DB_USER=india_auto_user
-DB_PASSWORD=StrongPass123!
-DB_NAME=india_automotive
+NEXTAUTH_SECRET=<your-secret-from-env.local>
+DEVELOPER_SECRET=<your-developer-secret>
+POSTGRES_URL=postgresql://<db_user>:<db_password>@127.0.0.1:5433/<db_name>
 ```
+
+> Note: Use `127.0.0.1` (not the public IP `87.106.200.69`) to connect to the local DB on the same VPS.
 
 ## 4. Install + build + migrate
 
 ```bash
 npm ci
-node database/scripts/migrate.mjs    # seeds tables from database/store.json (or empty if not present)
-npm run build
 ```
+
+The app auto-creates the database schema and seeds users on first startup (no separate migration step needed).
 
 ## 5. Run with PM2
 
 ```bash
-pm2 start npm --name lallubhai-amichand -- start
+pm2 start server.js --name lallubhai-amichand --cwd /var/www/lallubhai-amichand
 pm2 save
 pm2 startup       # follow the command it prints to enable on boot
 ```
