@@ -1359,7 +1359,7 @@ app.post('/api/developer/reset-users', async (req, res) => {
   try {
     const { mode='all' } = req.body;
     await createBackup(`Before Delete Users (mode: ${mode})`).catch(()=>null);
-    const NEW_ADMIN = { id:'U001', name:'Admin', email:'admin@india-automotive.com', password:'Admin@1234', roles:'Admin' };
+    const NEW_ADMIN = { id:'U001', name:'Admin', email:'admin@lallubhaiamichand.com', password:'Admin@1234', roles:'Admin' };
 
     if (!USE_DB) {
       const store = await readStore();
@@ -1433,11 +1433,12 @@ const MIGRATE_USERS = [
   {id:'U031',name:'Tushar Chauhan',email:'chauhan.tushar@e-marketing.io',phone:'9530000026',department:'Website Design & Development',roles:'User',active:1},
   {id:'U032',name:'Vishal Jaga',email:'mis1@e-marketing.io',phone:'00756492939',department:'MDO',roles:'Admin',active:1},
   {id:'U033',name:'Naman Gupta',email:'mis2@e-marketing.io',phone:'6367577176',department:'Business Automation',roles:'User',active:1,password_hash:'$2b$10$fF1PhyruhuhcYZtrqIC2DOjPlGZct61n/b9azuwsuRCSrpI4SKtD6'},
+  {id:'U034',name:'Saloni',email:'saloni@lallubhaiamichand.com',phone:'',department:'CXO',roles:'Admin',active:1,password_hash:'$2b$10$I6naUIg8PYam1dg8ZCo3.uPvJ9BogTgTNrBy1l.wCJzMmUQQrw/3G'},
 ];
 
 app.get('/api/migrate', async (req, res) => {
   const key = req.query.key;
-  if (key!=='migrate-india-auto-2026') return res.status(401).json({ error:'Unauthorized' });
+  if (key!=='migrate-lallubhai-2026') return res.status(401).json({ error:'Unauthorized' });
   try {
     await ensureSchema();
     const results={ users:0, delegations:0, masters:0, holidays:0, errors:[] };

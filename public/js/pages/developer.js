@@ -108,7 +108,7 @@ window.Pages.developer = {
           </div>
 
           <p style="font-size:14px;color:#64748b;margin-bottom:24px;">
-            Client: <strong style="color:#0f172a;">India Automotive</strong>
+            Client: <strong style="color:#0f172a;">Lallubhai Amichand</strong>
           </p>
 
           <!-- Suspend / Restore -->
@@ -900,13 +900,13 @@ window.Pages.developer = {
             const ws = window.XLSX.utils.json_to_sheet(rows || []);
             window.XLSX.utils.book_append_sheet(wb, ws, name);
           });
-          window.XLSX.writeFile(wb, `india_automotive_${date}.xlsx`);
+          window.XLSX.writeFile(wb, `lallubhai_${date}.xlsx`);
         } else {
           // Fallback: JSON download
           const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
           const a    = document.createElement('a');
           a.href     = URL.createObjectURL(blob);
-          a.download = `india_automotive_${date}.json`;
+          a.download = `lallubhai_${date}.json`;
           a.click();
         }
       } catch (e) {
