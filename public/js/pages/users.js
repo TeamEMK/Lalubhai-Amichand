@@ -505,16 +505,15 @@ window.Pages.users = (() => {
             <!-- Row 3: Department + Password (add only) -->
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <div class="flex items-center justify-between mb-1.5">
+                <div class="mb-1.5">
                   <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Department</label>
-                  <button type="button" id="um-dept-add-btn" title="Add new department"
-                    style="width:20px;height:20px;border-radius:50%;background:#C4714A;color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;flex-shrink:0;">+</button>
                 </div>
                 <div class="relative" id="um-dept-wrap">
                   <select id="um-department"
                     class="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[13px] text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition">
                     <option value="">e.g. Sales, Production</option>
                     ${deptOptions}
+                    <option value="__add_new__">+ Add new department</option>
                   </select>
                   <svg class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                   <div id="um-dept-new-row" style="display:none;position:absolute;inset:0;z-index:10;background:#fff;border:1.5px solid #C4714A;border-radius:8px;padding:0 8px;align-items:center;gap:6px;">
@@ -608,14 +607,18 @@ window.Pages.users = (() => {
       document.getElementById(elId)?.addEventListener('input', e => { _form[key] = e.target.value; });
     });
 
-    document.getElementById('um-department')?.addEventListener('change', e => { _form.department = e.target.value; });
-
-    /* Department: + add new */
-    document.getElementById('um-dept-add-btn')?.addEventListener('click', () => {
-      const row = document.getElementById('um-dept-new-row');
-      if (row) { row.style.display = 'flex'; }
-      setTimeout(() => document.getElementById('um-dept-new-input')?.focus(), 50);
+    document.getElementById('um-department')?.addEventListener('change', e => {
+      if (e.target.value === '__add_new__') {
+        e.target.value = _form.department || '';
+        const row = document.getElementById('um-dept-new-row');
+        if (row) { row.style.display = 'flex'; }
+        setTimeout(() => document.getElementById('um-dept-new-input')?.focus(), 50);
+      } else {
+        _form.department = e.target.value;
+      }
     });
+
+    /* Department: add new via inline input */
     document.getElementById('um-dept-new-cancel')?.addEventListener('click', () => {
       const row = document.getElementById('um-dept-new-row');
       if (row) row.style.display = 'none';
@@ -626,21 +629,20 @@ window.Pages.users = (() => {
       const inp = document.getElementById('um-dept-new-input');
       const val = (inp?.value || '').trim();
       if (!val) { inp?.focus(); return; }
-      /* add to local list if not already there */
       if (!_departments.includes(val)) _departments.push(val);
-      /* add option to select and auto-select it */
       const sel = document.getElementById('um-department');
       if (sel) {
         const exists = [...sel.options].some(o => o.value === val);
         if (!exists) {
+          // insert before the "Add new department" option
+          const addOpt = [...sel.options].find(o => o.value === '__add_new__');
           const opt = document.createElement('option');
           opt.value = val; opt.textContent = val;
-          sel.appendChild(opt);
+          addOpt ? sel.insertBefore(opt, addOpt) : sel.appendChild(opt);
         }
         sel.value = val;
         _form.department = val;
       }
-      /* hide input row */
       document.getElementById('um-dept-new-row').style.display = 'none';
       if (inp) inp.value = '';
     });
