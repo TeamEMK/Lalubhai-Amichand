@@ -510,22 +510,20 @@ window.Pages.users = (() => {
                   <button type="button" id="um-dept-add-btn" title="Add new department"
                     style="width:20px;height:20px;border-radius:50%;background:#C4714A;color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;flex-shrink:0;">+</button>
                 </div>
-                <div class="relative">
+                <div class="relative" id="um-dept-wrap">
                   <select id="um-department"
                     class="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[13px] text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition">
                     <option value="">e.g. Sales, Production</option>
                     ${deptOptions}
                   </select>
                   <svg class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                </div>
-                <div id="um-dept-new-row" style="display:none;margin-top:6px;">
-                  <div style="display:flex;gap:6px;align-items:center;background:#fff;border:1.5px solid #C4714A;border-radius:8px;padding:4px 8px;">
-                    <input id="um-dept-new-input" type="text" placeholder="New department name"
-                      style="flex:1;border:none;outline:none;font-size:12.5px;color:#1e293b;background:transparent;" />
+                  <div id="um-dept-new-row" style="display:none;position:absolute;inset:0;z-index:10;background:#fff;border:1.5px solid #C4714A;border-radius:8px;padding:0 8px;align-items:center;gap:6px;">
+                    <input id="um-dept-new-input" type="text" placeholder="Type department name…"
+                      style="flex:1;border:none;outline:none;font-size:12.5px;color:#1e293b;background:transparent;width:100%;padding:0;" />
                     <button type="button" id="um-dept-new-save"
-                      style="padding:3px 10px;background:#C4714A;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Add</button>
+                      style="padding:3px 10px;background:#C4714A;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;">Add</button>
                     <button type="button" id="um-dept-new-cancel"
-                      style="padding:3px 6px;background:transparent;color:#94a3b8;border:none;font-size:14px;cursor:pointer;line-height:1;">✕</button>
+                      style="padding:3px 6px;background:transparent;color:#94a3b8;border:none;font-size:15px;cursor:pointer;line-height:1;flex-shrink:0;">✕</button>
                   </div>
                 </div>
               </div>
@@ -615,7 +613,7 @@ window.Pages.users = (() => {
     /* Department: + add new */
     document.getElementById('um-dept-add-btn')?.addEventListener('click', () => {
       const row = document.getElementById('um-dept-new-row');
-      if (row) { row.style.display = row.style.display === 'none' || !row.style.display ? 'block' : 'none'; }
+      if (row) { row.style.display = 'flex'; }
       setTimeout(() => document.getElementById('um-dept-new-input')?.focus(), 50);
     });
     document.getElementById('um-dept-new-cancel')?.addEventListener('click', () => {
