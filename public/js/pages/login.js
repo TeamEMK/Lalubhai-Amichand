@@ -323,7 +323,10 @@ window.Pages.login = {
         // Bootstrap app
         if (window.Sidebar)  window.Sidebar.render(data.user);
         if (window.Topbar)   window.Topbar.render(data.user);
-        if (window.Router)   window.Router.init();
+        if (window.Router) {
+          window.Router.init();
+          window.Router.navigate('dashboard');
+        }
 
       } catch (err) {
         showError(err && err.message ? err.message : 'Invalid email or password');

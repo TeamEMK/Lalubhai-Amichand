@@ -382,12 +382,12 @@ async function createBackup(label='auto') {
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 class DbSessionStore extends session.Store {
-  async _ensureTable() {
-    try {
-      await pool.query(
-        `CREATE TABLE IF NOT EXISTS user_sessions (sid VARCHAR(128) PRIMARY KEY, data TEXT NOT NULL, expires_at DATETIME NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
-      );
-    } catch {}
+  constructor() {
+    super();
+    // create table immediately so it exists before first session read/write
+    pool.query(
+      `CREATE TABLE IF NOT EXISTS user_sessions (sid VARCHAR(128) PRIMARY KEY, data TEXT NOT NULL, expires_at DATETIME NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+    ).catch(() => {});
   }
   get(sid, cb) {
     pool.query('SELECT data, expires_at FROM user_sessions WHERE sid = $1', [sid])
