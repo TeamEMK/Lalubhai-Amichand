@@ -10,9 +10,9 @@ window.Pages['client-master'] = (() => {
   let _saving  = false;
   let _canEdit = false;
   let _form    = _blankForm();
-  let _tab     = 'vendors';   // 'vendors' | 'payments'
-  let _pmSearch  = '';
-  let _pmAmounts = {};        // { vendorId: amountString }
+  let _tab       = 'vendors';   // 'vendors' | 'payments'
+  let _pmRows    = [];          // [{ rid, vendorId, amount }]
+  let _pmNextRid = 1;
 
   /* ── Helpers ─────────────────────────────────────────────── */
   function _blankForm() {
@@ -31,14 +31,25 @@ window.Pages['client-master'] = (() => {
     );
   }
 
-  function _pmFiltered() {
-    const t = _pmSearch.trim().toLowerCase();
-    if (!t) return _list;
-    return _list.filter(v =>
-      v.name.toLowerCase().includes(t) ||
-      (v.mobile||'').includes(t) ||
-      (v.contact_number||'').includes(t)
+  function _blankPmRow() {
+    return { rid: _pmNextRid++, vendorId: null, amount: '' };
+  }
+
+  function _initPmRows(saved) {
+    _pmNextRid = 1; _pmRows = [];
+    (saved && saved.length ? saved : []).forEach(r =>
+      _pmRows.push({ rid: _pmNextRid++, vendorId: r.vendorId||null, amount: r.amount||'' })
     );
+    while (_pmRows.length < 10) _pmRows.push(_blankPmRow());
+  }
+
+  function _collectPmRows() {
+    document.querySelectorAll('#pm-tbody tr[data-rid]').forEach(tr => {
+      const row = _pmRows.find(r => r.rid === Number(tr.dataset.rid));
+      if (!row) return;
+      const a = tr.querySelector('.pm-amount-input');
+      if (a) row.amount = a.value;
+    });
   }
 
   function esc(s) {
@@ -207,74 +218,170 @@ window.Pages['client-master'] = (() => {
       +'</div><div id="cm-table">'+_renderTable()+'</div></div>';
   }
 
-  /* ── Payment Management table ─────────────────────────────── */
-  function _pmTableRows(rows, showBank) {
-    const cols = showBank ? 8 : 3;
-    if (!rows.length) return '<tr><td colspan="'+cols+'" style="padding:32px;text-align:center;color:#94a3b8;font-size:13px;">No vendors found.</td></tr>';
-    return rows.map((v, i) => {
-      const amt = _pmAmounts[v.id] || '';
-      const bankCols = showBank
-        ? '<td style="padding:12px 14px;font-size:13px;color:#374151;">'+esc(v.bank_name||'—')+'</td>'
-          +'<td style="padding:12px 14px;font-size:13px;color:#374151;">'+esc(v.account_holder||'—')+'</td>'
-          +'<td style="padding:12px 14px;font-size:12px;color:#374151;font-family:monospace;letter-spacing:.03em;">'+esc(v.account_no||'—')+'</td>'
-          +'<td style="padding:12px 14px;font-size:12px;color:#374151;font-family:monospace;letter-spacing:.06em;">'+esc(v.ifsc_code||'—')+'</td>'
-          +'<td style="padding:12px 14px;font-size:13px;color:#374151;">'+esc(v.branch_name||'—')+'</td>'
-        : '';
-      return '<tr style="border-bottom:1px solid #f1f5f9;" onmouseenter="this.style.background=\'#fafafa\'" onmouseleave="this.style.background=\'transparent\'">'
-        +'<td style="padding:12px 14px;font-size:13px;color:#94a3b8;text-align:center;">'+(i+1)+'</td>'
-        +'<td style="padding:12px 14px;">'
-          +'<div style="font-size:13px;font-weight:600;color:#1e293b;">'+esc(v.name)+'</div>'
-          +'<div style="font-size:11px;color:#94a3b8;margin-top:1px;">'+esc(v.mobile||v.contact_number||'—')+'</div>'
-        +'</td>'
-        +'<td style="padding:10px 14px;">'
-          +'<div style="display:flex;align-items:center;gap:4px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:5px 10px;min-width:110px;transition:border-color .15s;" onfocusin="this.style.borderColor=\'#C4714A\'" onfocusout="this.style.borderColor=\'#e2e8f0\'">'
-            +'<span style="font-size:12px;color:#94a3b8;font-weight:600;">&#x20B9;</span>'
-            +'<input class="pm-amount-input" data-id="'+v.id+'" type="number" min="0" step="0.01" placeholder="0.00" value="'+esc(amt)+'" style="border:none;outline:none;background:transparent;font-size:13px;font-weight:600;color:#1e293b;width:100%;min-width:0;" />'
+  /* ── Payment Management (row-based) ─────────────────────────── */
+  function _pmRowHtml(row, idx) {
+    const v   = row.vendorId ? _list.find(x => String(x.id) === String(row.vendorId)) : null;
+    const tdS = 'padding:10px 12px;font-size:13px;color:#374151;white-space:nowrap;';
+    const mS  = tdS + 'font-family:monospace;letter-spacing:.04em;';
+    return '<tr data-rid="'+row.rid+'" style="border-bottom:1px solid #f1f5f9;" onmouseenter="this.style.background=\'#fafafa\'" onmouseleave="this.style.background=\'transparent\'">'
+      +'<td class="pm-sno" style="'+tdS+'text-align:center;color:#94a3b8;min-width:44px;">'+(idx+1)+'</td>'
+      +'<td style="padding:8px 10px;min-width:220px;">'
+        +'<div style="position:relative;">'
+          +'<div style="display:flex;align-items:center;gap:5px;border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 10px;background:#fff;" '
+            +'onfocusin="this.style.borderColor=\'#C4714A\'" onfocusout="this.style.borderColor=\'#e2e8f0\'">'
+            +'<input class="pm-vendor-input" data-rid="'+row.rid+'" type="text" value="'+esc(v?v.name:'')+'" placeholder="Select vendor…" autocomplete="off" '
+              +'style="border:none;outline:none;background:transparent;font-size:13px;font-weight:'+(v?'600':'400')+';color:#1e293b;width:100%;min-width:0;cursor:pointer;" />'
+            +'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>'
           +'</div>'
-        +'</td>'
-        +bankCols
-        +'</tr>';
-    }).join('');
+          +'<div class="pm-vendor-dropdown" data-rid="'+row.rid+'" style="display:none;position:fixed;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.14);max-height:220px;overflow-y:auto;"></div>'
+        +'</div>'
+      +'</td>'
+      +'<td style="padding:8px 10px;min-width:130px;">'
+        +'<div style="display:flex;align-items:center;gap:4px;border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 10px;background:#f8fafc;" '
+          +'onfocusin="this.style.borderColor=\'#C4714A\'" onfocusout="this.style.borderColor=\'#e2e8f0\'">'
+          +'<span style="font-size:12px;color:#94a3b8;font-weight:600;">&#x20B9;</span>'
+          +'<input class="pm-amount-input" data-rid="'+row.rid+'" type="number" min="0" step="0.01" placeholder="0.00" value="'+esc(row.amount)+'" '
+            +'style="border:none;outline:none;background:transparent;font-size:13px;font-weight:600;color:#1e293b;width:100%;min-width:0;" />'
+        +'</div>'
+      +'</td>'
+      +'<td style="'+tdS+'">'+esc(v&&v.bank_name?v.bank_name:'—')+'</td>'
+      +'<td style="'+tdS+'">'+esc(v&&v.account_holder?v.account_holder:'—')+'</td>'
+      +'<td style="'+mS+'">'+esc(v&&v.account_no?v.account_no:'—')+'</td>'
+      +'<td style="'+mS+'letter-spacing:.06em;">'+esc(v&&v.ifsc_code?v.ifsc_code:'—')+'</td>'
+      +'<td style="'+tdS+'">'+esc(v&&v.branch_name?v.branch_name:'—')+'</td>'
+      +'<td style="padding:8px 10px;text-align:center;">'
+        +'<button class="pm-del-row" data-rid="'+row.rid+'" title="Remove row" style="background:transparent;border:none;cursor:pointer;color:#cbd5e1;padding:4px;line-height:1;" onmouseenter="this.style.color=\'#ef4444\'" onmouseleave="this.style.color=\'#cbd5e1\'">'
+          +'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>'
+        +'</button>'
+      +'</td>'
+      +'</tr>';
   }
 
   function _renderPaymentTab() {
-    const rows = _pmFiltered();
-    const thS  = 'padding:11px 14px;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#64748b;text-align:left;white-space:nowrap;border-bottom:2px solid #f1f5f9;background:#f8fafc;';
-
+    const thS    = 'padding:11px 14px;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#64748b;text-align:left;white-space:nowrap;border-bottom:2px solid #f1f5f9;background:#f8fafc;';
+    const filled = _pmRows.filter(r => r.vendorId).length;
     return '<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">'
       +'<div style="padding:12px 16px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
-        +'<div style="display:flex;align-items:center;gap:8px;flex:1;max-width:300px;padding:7px 12px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;">'
-          +'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>'
-          +'<input id="pm-search-input" placeholder="Search vendor name…" value="'+esc(_pmSearch)+'" style="border:none;outline:none;font-size:13px;color:#1e293b;background:transparent;width:100%;" autocomplete="off" />'
-        +'</div>'
-        +'<span id="pm-count" style="font-size:11px;color:#94a3b8;flex:1;">'+rows.length+' of '+_list.length+'</span>'
+        +'<span style="font-size:13px;font-weight:700;color:#1e293b;">Payment Entries</span>'
+        +'<span id="pm-header-count" style="font-size:11px;color:#94a3b8;">('+(filled)+' vendor'+(filled!==1?'s':'')+' selected)</span>'
         +'<div style="display:flex;align-items:center;gap:8px;margin-left:auto;">'
+          +'<button id="pm-add-row-btn" style="display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;background:#eff6ff;color:#2563eb;border:1.5px solid #bfdbfe;font-size:13px;font-weight:600;cursor:pointer;">'
+            +'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Add Row'
+          +'</button>'
           +'<button id="pm-save-btn" style="display:flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;background:#059669;color:#fff;border:none;font-size:13px;font-weight:600;cursor:pointer;">'
-            +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>'
-            +'Save'
+            +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save'
           +'</button>'
           +'<button id="pm-excel-btn" style="display:flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;background:#1d6f42;color:#fff;border:none;font-size:13px;font-weight:600;cursor:pointer;">'
-            +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="8" y1="9" x2="10" y2="9"/></svg>'
-            +'Excel'
+            +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="8" y1="9" x2="10" y2="9"/></svg>Excel'
           +'</button>'
         +'</div>'
       +'</div>'
       +'<div style="overflow-x:auto;">'
-        +'<table style="width:100%;border-collapse:collapse;min-width:860px;">'
+        +'<table style="width:100%;border-collapse:collapse;min-width:960px;">'
           +'<thead><tr>'
             +'<th style="'+thS+'width:48px;text-align:center;">S.No.</th>'
-            +'<th style="'+thS+'">Name</th>'
-            +'<th style="'+thS+'">Amount</th>'
+            +'<th style="'+thS+'min-width:220px;">Vendor Name</th>'
+            +'<th style="'+thS+'min-width:130px;">Amount</th>'
             +'<th style="'+thS+'">Bank Name</th>'
             +'<th style="'+thS+'">Account Holder</th>'
             +'<th style="'+thS+'">Account No.</th>'
             +'<th style="'+thS+'">IFSC Code</th>'
             +'<th style="'+thS+'">Branch</th>'
+            +'<th style="'+thS+'width:44px;"></th>'
           +'</tr></thead>'
-          +'<tbody id="pm-tbody">'+_pmTableRows(rows, true)+'</tbody>'
+          +'<tbody id="pm-tbody">'+_pmRows.map(function(r,i){return _pmRowHtml(r,i);}).join('')+'</tbody>'
         +'</table>'
       +'</div>'
     +'</div>';
+  }
+
+  function _updatePmHeader() {
+    const filled = _pmRows.filter(r => r.vendorId).length;
+    const el = document.getElementById('pm-header-count');
+    if (el) el.textContent = '('+filled+' vendor'+(filled!==1?'s':'')+' selected)';
+    document.querySelectorAll('#pm-tbody tr[data-rid]').forEach(function(tr, i) {
+      var sno = tr.querySelector('.pm-sno');
+      if (sno) sno.textContent = i+1;
+    });
+  }
+
+  function _bindRowEvents(tr, row) {
+    var amtInp = tr.querySelector('.pm-amount-input');
+    if (amtInp) amtInp.addEventListener('input', function(e) { row.amount = e.target.value; });
+
+    var delBtn = tr.querySelector('.pm-del-row');
+    if (delBtn) {
+      delBtn.addEventListener('click', function() {
+        _collectPmRows();
+        var idx = _pmRows.findIndex(function(r) { return r.rid === row.rid; });
+        if (idx !== -1) _pmRows.splice(idx, 1);
+        tr.remove();
+        _updatePmHeader();
+      });
+    }
+
+    var input  = tr.querySelector('.pm-vendor-input');
+    var ddMenu = tr.querySelector('.pm-vendor-dropdown');
+    if (!input || !ddMenu) return;
+
+    function _buildMenu(q) {
+      var qt = q.trim().toLowerCase();
+      var matches = qt
+        ? _list.filter(function(v) { return v.name.toLowerCase().includes(qt)||(v.mobile||'').includes(qt); })
+        : _list;
+      if (!matches.length) {
+        ddMenu.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:#94a3b8;">No vendors found</div>';
+        return;
+      }
+      ddMenu.innerHTML = matches.slice(0,50).map(function(v) {
+        return '<div class="pm-dd-item" data-id="'+v.id+'" style="padding:9px 14px;font-size:13px;cursor:pointer;color:#1e293b;border-bottom:1px solid #f8fafc;" onmouseenter="this.style.background=\'#f1f5f9\'" onmouseleave="this.style.background=\'transparent\'">'
+          +'<span style="font-weight:600;">'+esc(v.name)+'</span>'
+          +(v.mobile?'<span style="font-size:11px;color:#94a3b8;margin-left:8px;">'+esc(v.mobile)+'</span>':'')
+        +'</div>';
+      }).join('');
+      ddMenu.querySelectorAll('.pm-dd-item').forEach(function(item) {
+        item.addEventListener('mousedown', function(e) {
+          e.preventDefault();
+          var vendor = _list.find(function(v) { return String(v.id) === String(item.dataset.id); });
+          if (!vendor) return;
+          row.vendorId = vendor.id;
+          input.value = vendor.name;
+          input.style.fontWeight = '600';
+          ddMenu.style.display = 'none';
+          var cells = tr.querySelectorAll('td');
+          cells[3].textContent = vendor.bank_name      || '—';
+          cells[4].textContent = vendor.account_holder || '—';
+          cells[5].textContent = vendor.account_no     || '—';
+          cells[6].textContent = vendor.ifsc_code      || '—';
+          cells[7].textContent = vendor.branch_name    || '—';
+          _updatePmHeader();
+        });
+      });
+    }
+
+    function _posMenu() {
+      var rect = input.getBoundingClientRect();
+      ddMenu.style.top   = (rect.bottom + 2) + 'px';
+      ddMenu.style.left  = rect.left + 'px';
+      ddMenu.style.width = Math.max(rect.width, 240) + 'px';
+    }
+
+    input.addEventListener('focus', function() { _posMenu(); ddMenu.style.display='block'; _buildMenu(input.value); });
+    input.addEventListener('input', function() { _posMenu(); ddMenu.style.display='block'; _buildMenu(input.value); });
+    input.addEventListener('blur', function() {
+      setTimeout(function() {
+        ddMenu.style.display = 'none';
+        if (row.vendorId) {
+          var v = _list.find(function(x) { return String(x.id) === String(row.vendorId); });
+          if (v && input.value !== v.name) input.value = v.name;
+        } else if (input.value.trim()) {
+          input.value = '';
+        }
+      }, 160);
+    });
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') { ddMenu.style.display='none'; input.blur(); }
+    });
   }
 
   /* ── Main render ──────────────────────────────────────────── */
@@ -335,75 +442,60 @@ window.Pages['client-master'] = (() => {
     });
   }
 
-  function _bindAmountInputs() {
-    document.querySelectorAll('.pm-amount-input').forEach(inp => {
-      inp.addEventListener('input', e => { _pmAmounts[e.target.dataset.id] = e.target.value; });
-    });
-  }
-
   function _bindPaymentEvents() {
-    const input = document.getElementById('pm-search-input');
-    if (!input) return;
+    if (!document.getElementById('pm-tbody')) return;
 
-    input.addEventListener('input', e => {
-      _pmSearch = e.target.value;
-      document.querySelectorAll('.pm-amount-input').forEach(i => { _pmAmounts[i.dataset.id] = i.value; });
-      const filtered = _pmFiltered();
+    document.getElementById('pm-add-row-btn')?.addEventListener('click', () => {
+      _collectPmRows();
+      const newRow = _blankPmRow();
+      _pmRows.push(newRow);
       const tbody = document.getElementById('pm-tbody');
-      if (tbody) tbody.innerHTML = _pmTableRows(filtered, true);
-      const count = document.getElementById('pm-count');
-      if (count) count.textContent = filtered.length + ' of ' + _list.length;
-      _bindAmountInputs();
+      if (tbody) {
+        tbody.insertAdjacentHTML('beforeend', _pmRowHtml(newRow, _pmRows.length - 1));
+        _bindRowEvents(tbody.lastElementChild, newRow);
+      }
+      _updatePmHeader();
     });
 
-    _bindAmountInputs();
-
-    // Save button — persist amounts to localStorage
     document.getElementById('pm-save-btn')?.addEventListener('click', () => {
-      // Collect latest values from inputs before saving
-      document.querySelectorAll('.pm-amount-input').forEach(inp => {
-        _pmAmounts[inp.dataset.id] = inp.value;
-      });
+      _collectPmRows();
       try {
-        localStorage.setItem('pm_amounts', JSON.stringify(_pmAmounts));
-        Utils.showToast('Amounts saved successfully');
+        localStorage.setItem('pm_rows', JSON.stringify(_pmRows.map(r => ({ vendorId:r.vendorId, amount:r.amount }))));
+        Utils.showToast('Payment entries saved');
       } catch { Utils.showToast('Failed to save','error'); }
     });
 
-    // Excel button — export table as CSV download
     document.getElementById('pm-excel-btn')?.addEventListener('click', () => {
-      document.querySelectorAll('.pm-amount-input').forEach(inp => {
-        _pmAmounts[inp.dataset.id] = inp.value;
-      });
-      const rows = _pmFiltered();
-      const headers = ['S.No.','Name','Mobile','Bank Name','Account Holder','Account No.','IFSC Code','Branch','Amount'];
-      const csvRows = [headers.join(',')];
-      rows.forEach((v, i) => {
-        const amt = _pmAmounts[v.id] || '';
-        const cols = [
-          i+1,
-          '"'+(v.name||'').replace(/"/g,'""')+'"',
-          '"'+(v.mobile||v.contact_number||'').replace(/"/g,'""')+'"',
+      _collectPmRows();
+      const hdr = ['S.No.','Vendor Name','Amount','Bank Name','Account Holder','Account No.','IFSC Code','Branch'];
+      const csvRows = [hdr.join(',')];
+      let sno = 1;
+      _pmRows.forEach(row => {
+        if (!row.vendorId) return;
+        const v = _list.find(x => String(x.id) === String(row.vendorId));
+        if (!v) return;
+        csvRows.push([sno++,
+          '"'+(v.name||'').replace(/"/g,'""')+'"', row.amount||0,
           '"'+(v.bank_name||'').replace(/"/g,'""')+'"',
           '"'+(v.account_holder||'').replace(/"/g,'""')+'"',
           '"'+(v.account_no||'').replace(/"/g,'""')+'"',
           '"'+(v.ifsc_code||'').replace(/"/g,'""')+'"',
           '"'+(v.branch_name||'').replace(/"/g,'""')+'"',
-          amt,
-        ];
-        csvRows.push(cols.join(','));
+        ].join(','));
       });
-      const csv  = '﻿' + csvRows.join('\r\n'); // BOM for Excel UTF-8
-      const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+      const csv  = '﻿'+csvRows.join('\r\n');
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
-      a.href     = url;
-      a.download = 'payment_management_'+new Date().toISOString().slice(0,10)+'.csv';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      a.href=url; a.download='payment_management_'+new Date().toISOString().slice(0,10)+'.csv';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
       Utils.showToast('Excel file downloaded');
+    });
+
+    document.querySelectorAll('#pm-tbody tr[data-rid]').forEach(tr => {
+      const row = _pmRows.find(r => r.rid === Number(tr.dataset.rid));
+      if (row) _bindRowEvents(tr, row);
     });
   }
 
@@ -414,8 +506,8 @@ window.Pages['client-master'] = (() => {
         ? (window.currentUser?.roles||[]).some(r => r==='Admin'||r==='HOD')
         : String(window.currentUser?.roles||'').includes('Admin');
       _q=''; _status='All'; _open=false; _editing=null; _saving=false;
-      _form=_blankForm(); _list=[]; _pmSearch='';
-      try { _pmAmounts = JSON.parse(localStorage.getItem('pm_amounts')||'{}'); } catch { _pmAmounts={}; }
+      _form=_blankForm(); _list=[];
+      try { _initPmRows(JSON.parse(localStorage.getItem('pm_rows')||'[]')); } catch { _initPmRows([]); }
       const el = document.getElementById('main-content');
       if (el) el.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8;font-size:13px;">Loading vendors…</div>';
       await _load();
