@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
+  window.Theme?.init();          // apply saved theme before first render
   const {user} = await fetch('/api/auth/session').then(r=>r.json());
   window.currentUser = user;
   if (user) {

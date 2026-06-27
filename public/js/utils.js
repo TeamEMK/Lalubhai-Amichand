@@ -99,8 +99,8 @@ window.Utils = {
         : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C4714A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
 
       const iconBg  = danger ? '#fef2f2' : '#fff8f5';
-      const btnBg   = danger ? '#dc2626' : '#C4714A';
-      const btnHover= danger ? '#b91c1c' : '#b5603a';
+      const btnBg   = danger ? '#dc2626' : 'var(--color-primary)';
+      const btnHover= danger ? '#b91c1c' : 'var(--color-primary-dark)';
 
       const overlay = document.createElement('div');
       overlay.id = 'utils-confirm-overlay';
@@ -149,7 +149,7 @@ window.Utils = {
     el.style.cssText = 'position:fixed;inset:0;background:rgba(255,255,255,.75);z-index:9990;display:grid;place-items:center;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);';
     el.innerHTML = `
       <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
-        <div style="width:44px;height:44px;border-radius:50%;border:3px solid #f1f5f9;border-top-color:#C4714A;animation:spin .7s linear infinite;"></div>
+        <div style="width:44px;height:44px;border-radius:50%;border:3px solid #f1f5f9;border-top-color:var(--color-primary);animation:spin .7s linear infinite;"></div>
         <div id="utils-loader-msg" style="font-size:13px;font-weight:500;color:#64748b;">${String(msg).replace(/</g,'&lt;')}</div>
       </div>`;
     document.body.appendChild(el);

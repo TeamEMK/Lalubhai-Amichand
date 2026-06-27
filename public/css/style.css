@@ -1,12 +1,22 @@
 /*
  * style.css — Design system for Lallubhai Amichand ERP
- * Brand primary: #C4714A (orange)  |  Background: #f4f6f9
+ * Theming via CSS custom properties. Defaults = Orange theme.
  */
+
+/* ── CSS Custom Properties (theme vars) ──────────────────────────── */
+
+:root {
+  --color-primary:       #C4714A;
+  --color-primary-dark:  #b05a38;
+  --color-primary-light: rgba(196,113,74,.14);
+  --color-primary-ring:  rgba(196,113,74,.15);
+  --app-bg:              #f4f6f9;
+}
 
 /* ── Base ────────────────────────────────────────────────────────── */
 
 html, body {
-  background: #f4f6f9;
+  background: var(--app-bg);
   color: #1e293b;
   font-family: 'Inter', 'Segoe UI', ui-sans-serif, system-ui, -apple-system, sans-serif;
   font-size: 13.5px;
@@ -107,13 +117,13 @@ html, body {
   padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
   line-height: 1; transition: all 150ms; cursor: pointer; border: none; outline: none;
   text-decoration: none; letter-spacing: 0.01em;
-  background: linear-gradient(135deg, #C4714A 0%, #d4834f 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   color: #fff;
-  box-shadow: 0 1px 3px rgba(196,113,74,0.3), 0 1px 2px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px var(--color-primary-ring), 0 1px 2px rgba(0,0,0,0.05);
 }
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #b8643f 0%, #c8763a 100%);
-  box-shadow: 0 4px 12px rgba(196,113,74,0.35);
+  filter: brightness(0.92);
+  box-shadow: 0 4px 12px var(--color-primary-ring);
   transform: translateY(-1px);
 }
 .btn-primary:active { transform: translateY(0); }
@@ -224,8 +234,8 @@ html, body {
 .input::placeholder { color: #94a3b8; }
 .input:focus {
   outline: none;
-  border-color: #C4714A;
-  box-shadow: 0 0 0 3px rgba(196,113,74,0.15);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-ring);
 }
 .input:disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
 
@@ -367,12 +377,12 @@ html, body {
 .sidebar-nav-item.active    { background: rgba(196,113,74,0.15); font-weight: 700; }
 .sidebar-active-bar {
   position: absolute; left: 0; top: 5px; bottom: 5px;
-  width: 3px; border-radius: 0 3px 3px 0; background: #C4714A;
+  width: 3px; border-radius: 0 3px 3px 0; background: var(--color-primary);
 }
 
 /* ── Login Input Focus ───────────────────────────────────────────── */
 
 .login-input:focus {
-  border-color: #C4714A !important;
-  box-shadow: 0 0 0 3px rgba(196,113,74,0.14) !important;
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px var(--color-primary-ring) !important;
 }

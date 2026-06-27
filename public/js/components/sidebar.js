@@ -69,11 +69,11 @@ window.Sidebar = {
       ? `<span style="position:absolute;top:-6px;right:-6px;min-width:14px;height:14px;padding:0 3px;border-radius:9999px;font-size:9px;font-weight:700;color:#fff;background:#C4714A;box-shadow:0 0 0 2px #09090b;display:flex;align-items:center;justify-content:center;line-height:1;">${pendingCount}</span>`
       : '';
 
-    const activeBg    = active ? 'rgba(196,113,74,0.14)' : 'transparent';
+    const activeBg    = active ? 'var(--color-primary-light)' : 'transparent';
     const activeBar   = active
-      ? `<span style="position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:0 3px 3px 0;background:#C4714A;"></span>`
+      ? `<span style="position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:0 3px 3px 0;background:var(--color-primary);"></span>`
       : '';
-    const iconColor   = active ? '#E8A07A' : 'currentColor';
+    const iconColor   = active ? 'var(--color-primary)' : 'currentColor';
     const fontWeight  = active ? '700' : '500';
 
     return `
@@ -202,17 +202,17 @@ window.Sidebar = {
     const activeRoute = (window.location.hash || '').replace('#', '') || 'dashboard';
     document.querySelectorAll('#sidebar [data-route]').forEach(el => {
       const isActive = el.dataset.route === activeRoute;
-      el.style.background   = isActive ? 'rgba(196,113,74,0.14)' : 'transparent';
+      el.style.background   = isActive ? 'var(--color-primary-light)' : 'transparent';
       el.style.fontWeight   = isActive ? '700' : '500';
       el.dataset.active     = isActive ? '1' : '';
       const iconSpan = el.querySelector('span');
-      if (iconSpan) iconSpan.style.color = isActive ? '#E8A07A' : 'currentColor';
+      if (iconSpan) iconSpan.style.color = isActive ? 'var(--color-primary)' : 'currentColor';
       // active bar
       let bar = el.querySelector('.sb-active-bar');
       if (isActive && !bar) {
         bar = document.createElement('span');
         bar.className = 'sb-active-bar';
-        bar.style.cssText = 'position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:0 3px 3px 0;background:#C4714A;';
+        bar.style.cssText = 'position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:0 3px 3px 0;background:var(--color-primary);';
         el.prepend(bar);
       } else if (!isActive && bar) {
         bar.remove();
