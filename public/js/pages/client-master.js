@@ -992,7 +992,7 @@ window.Pages['client-master'] = (() => {
       const content = document.getElementById('cm-tab-content');
       if (content) content.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:300px;"><div style="text-align:center;"><div style="width:36px;height:36px;border-radius:50%;border:3px solid #f1f5f9;border-top-color:var(--color-primary);animation:spin .7s linear infinite;margin:0 auto 12px;"></div><div style="font-size:13px;color:#94a3b8;">Loading history…</div></div></div>';
       await _phLoad();
-      if (content) { content.innerHTML = _renderHistoryTab(); _bindHistoryTabEvents(); }
+      _render();
     });
     document.getElementById('cm-add-btn')?.addEventListener('click', _openAdd);
 
