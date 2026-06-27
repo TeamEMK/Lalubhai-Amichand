@@ -24,11 +24,11 @@ window.Pages['client-master'] = (() => {
     };
   }
 
-  function _blankRow() { return { vendorId: null, vendorSearch: '', amount: '' }; }
+  function _blankRow() { return { vendorId: null, vendorSearch: '', amount: '', txnType: 'N', narration: '' }; }
 
   function _initRows(saved) {
     _pmRows = (Array.isArray(saved) ? saved : [])
-      .map(e => ({ vendorId: e.vendorId || null, vendorSearch: '', amount: e.amount || '' }));
+      .map(e => ({ vendorId: e.vendorId || null, vendorSearch: '', amount: e.amount || '', txnType: e.txnType || 'N', narration: e.narration || '' }));
     _resolveVendorNames();
     while (_pmRows.length < 10) _pmRows.push(_blankRow());
   }
@@ -278,17 +278,26 @@ window.Pages['client-master'] = (() => {
 
   /* ── Payment Management – Excel grid ───────────────────────── */
   function _pmRowHtml(row, i) {
-    const v   = row.vendorId ? _list.find(x => String(x.id) === String(row.vendorId)) : null;
-    const hasData = !!(row.vendorId || row.vendorSearch || row.amount);
-    const cellS = 'padding:5px 8px;border-right:1px solid #f0f4f8;';
-    const autoS = 'font-size:12.5px;color:' + (v ? '#374151' : '#cbd5e1') + ';padding:7px 10px;';
-    const monoS = autoS + 'font-family:monospace;letter-spacing:.04em;';
+    const v       = row.vendorId ? _list.find(x => String(x.id) === String(row.vendorId)) : null;
+    const hasData = !!(row.vendorId || row.vendorSearch || row.amount || row.narration);
+    const cellS   = 'padding:5px 8px;border-right:1px solid #f0f4f8;';
+    const autoS   = 'font-size:12.5px;color:' + (v ? '#374151' : '#cbd5e1') + ';padding:7px 10px;';
+    const monoS   = autoS + 'font-family:monospace;letter-spacing:.04em;';
+    const txn     = row.txnType || 'N';
 
     return '<tr data-ri="' + i + '" style="border-bottom:1px solid #eef2f7;' + (i % 2 === 1 ? 'background:#fafbfc;' : '') + '">'
       // S.No
-      + '<td style="' + cellS + 'text-align:center;width:42px;color:#94a3b8;font-size:12px;font-weight:600;padding:5px 4px;">' + (i+1) + '</td>'
+      + '<td style="' + cellS + 'text-align:center;width:38px;color:#94a3b8;font-size:12px;font-weight:600;padding:5px 4px;">' + (i+1) + '</td>'
+      // Txn Type - N / R / I
+      + '<td style="' + cellS + 'width:64px;padding:4px 5px;">'
+        + '<select class="pm-txn-inp" data-ri="' + i + '" style="width:100%;padding:6px 6px;border:1.5px solid #e9ecef;border-radius:7px;font-size:13px;font-weight:700;color:#1e293b;outline:none;background:#fff;cursor:pointer;">'
+          + '<option value="N" ' + (txn==='N'?'selected':'') + '>N</option>'
+          + '<option value="R" ' + (txn==='R'?'selected':'') + '>R</option>'
+          + '<option value="I" ' + (txn==='I'?'selected':'') + '>I</option>'
+        + '</select>'
+      + '</td>'
       // Name - editable with search
-      + '<td style="' + cellS + 'min-width:190px;padding:4px 6px;">'
+      + '<td style="' + cellS + 'min-width:180px;padding:4px 5px;">'
         + '<div style="position:relative;">'
           + '<input class="pm-name-inp" data-ri="' + i + '" type="text" placeholder="Search vendor…" autocomplete="off" value="' + esc(row.vendorSearch) + '" '
             + 'style="width:100%;box-sizing:border-box;padding:6px 10px;border:1.5px solid ' + (v ? '#C4714A' : '#e9ecef') + ';border-radius:7px;font-size:13px;font-weight:' + (v?'600':'400') + ';color:#1e293b;outline:none;background:' + (v?'#fff8f5':'#fff') + ';transition:border-color .15s;" />'
@@ -296,21 +305,27 @@ window.Pages['client-master'] = (() => {
         + '</div>'
       + '</td>'
       // Amount - editable
-      + '<td style="' + cellS + 'min-width:130px;padding:4px 6px;">'
-        + '<div style="display:flex;align-items:center;gap:4px;border:1.5px solid #e9ecef;border-radius:7px;padding:6px 10px;background:' + (row.amount?'#f8fff9':'#fff') + ';transition:border-color .15s;" onfocusin="this.style.borderColor=\'#059669\';this.style.background=\'#f0fdf4\'" onfocusout="this.style.borderColor=\'#e9ecef\';this.style.background=\'' + (row.amount?'#f8fff9':'#fff') + '\'">'
+      + '<td style="' + cellS + 'min-width:120px;padding:4px 5px;">'
+        + '<div style="display:flex;align-items:center;gap:4px;border:1.5px solid #e9ecef;border-radius:7px;padding:6px 9px;background:' + (row.amount?'#f8fff9':'#fff') + ';transition:border-color .15s;" onfocusin="this.style.borderColor=\'#059669\';this.style.background=\'#f0fdf4\'" onfocusout="this.style.borderColor=\'#e9ecef\';this.style.background=\'' + (row.amount?'#f8fff9':'#fff') + '\'">'
           + '<span style="color:#94a3b8;font-size:12px;font-weight:600;">₹</span>'
           + '<input class="pm-amount-inp" data-ri="' + i + '" type="number" min="0" step="0.01" placeholder="0.00" value="' + esc(row.amount) + '" '
             + 'style="border:none;outline:none;background:transparent;font-size:13px;font-weight:700;color:#1e293b;width:100%;" />'
         + '</div>'
       + '</td>'
+      // Narration / Reference (Instruction Reference Number in bank format)
+      + '<td style="' + cellS + 'min-width:150px;padding:4px 5px;">'
+        + '<input class="pm-narr-inp" data-ri="' + i + '" type="text" placeholder="Bill no / narration…" value="' + esc(row.narration) + '" '
+          + 'style="width:100%;box-sizing:border-box;padding:6px 10px;border:1.5px solid ' + (row.narration?'#6366f1':'#e9ecef') + ';border-radius:7px;font-size:12px;color:#374151;outline:none;background:' + (row.narration?'#f5f5ff':'#fff') + ';transition:border-color .15s;" '
+          + 'onfocus="this.style.borderColor=\'#6366f1\';this.style.background=\'#f5f5ff\'" onblur="this.style.borderColor=\'' + (row.narration?'#6366f1':'#e9ecef') + '\';this.style.background=\'' + (row.narration?'#f5f5ff':'#fff') + '\'" />'
+      + '</td>'
       // Auto-filled cells
-      + '<td style="' + cellS + 'min-width:110px;"><span style="' + autoS + '">' + esc(v?.bank_name||'—') + '</span></td>'
-      + '<td style="' + cellS + 'min-width:130px;"><span style="' + autoS + '">' + esc(v?.account_holder||'—') + '</span></td>'
+      + '<td style="' + cellS + 'min-width:100px;"><span style="' + autoS + '">' + esc(v?.bank_name||'—') + '</span></td>'
+      + '<td style="' + cellS + 'min-width:120px;"><span style="' + autoS + '">' + esc(v?.account_holder||'—') + '</span></td>'
       + '<td style="' + cellS + 'min-width:140px;"><span style="' + monoS + '">' + esc(v?.account_no||'—') + '</span></td>'
       + '<td style="' + cellS + 'min-width:100px;"><span style="' + monoS + '">' + esc(v?.ifsc_code||'—') + '</span></td>'
-      + '<td style="' + cellS + 'min-width:110px;border-right:none;"><span style="' + autoS + '">' + esc(v?.branch_name||'—') + '</span></td>'
+      + '<td style="' + cellS + 'min-width:100px;border-right:none;"><span style="' + autoS + '">' + esc(v?.branch_name||'—') + '</span></td>'
       // Clear
-      + '<td style="padding:5px 8px;text-align:center;width:36px;">'
+      + '<td style="padding:5px 6px;text-align:center;width:32px;">'
         + (hasData
           ? '<button class="pm-clear-row" data-ri="' + i + '" title="Clear row" style="background:transparent;border:none;cursor:pointer;color:#d1d5db;padding:3px;line-height:1;" onmouseenter="this.style.color=\'#ef4444\'" onmouseleave="this.style.color=\'#d1d5db\'">'
               + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>'
@@ -350,15 +365,17 @@ window.Pages['client-master'] = (() => {
       + '<div style="overflow-x:auto;">'
         + '<table style="width:100%;border-collapse:collapse;min-width:920px;">'
           + '<thead><tr>'
-            + '<th style="' + thS + 'text-align:center;width:42px;">#</th>'
-            + '<th style="' + thS + 'min-width:190px;">Name</th>'
-            + '<th style="' + thS + 'min-width:130px;">Amount</th>'
-            + '<th style="' + thS + 'min-width:110px;">Bank Name</th>'
-            + '<th style="' + thS + 'min-width:130px;">Account Holder</th>'
+            + '<th style="' + thS + 'text-align:center;width:38px;">#</th>'
+            + '<th style="' + thS + 'width:64px;">Txn Type</th>'
+            + '<th style="' + thS + 'min-width:180px;">Beneficiary Name</th>'
+            + '<th style="' + thS + 'min-width:120px;">Amount</th>'
+            + '<th style="' + thS + 'min-width:150px;">Narration / Ref No.</th>'
+            + '<th style="' + thS + 'min-width:100px;">Bank Name</th>'
+            + '<th style="' + thS + 'min-width:120px;">Account Holder</th>'
             + '<th style="' + thS + 'min-width:140px;">Account No.</th>'
             + '<th style="' + thS + 'min-width:100px;">IFSC Code</th>'
-            + '<th style="' + thS + 'min-width:110px;border-right:none;">Branch</th>'
-            + '<th style="' + thS + 'width:36px;border-right:none;"></th>'
+            + '<th style="' + thS + 'min-width:100px;border-right:none;">Branch</th>'
+            + '<th style="' + thS + 'width:32px;border-right:none;"></th>'
           + '</tr></thead>'
           + '<tbody id="pm-tbody">'
             + _pmRows.map((r, i) => _pmRowHtml(r, i)).join('')
@@ -505,6 +522,10 @@ window.Pages['client-master'] = (() => {
     if (amtInp) {
       amtInp.addEventListener('input', () => { _pmRows[ri].amount = amtInp.value; _updatePmHeader(); });
     }
+    const txnInp  = rowEl.querySelector('.pm-txn-inp[data-ri="'  + ri + '"]');
+    const narrInp = rowEl.querySelector('.pm-narr-inp[data-ri="' + ri + '"]');
+    if (txnInp)  txnInp.addEventListener('change', () => { _pmRows[ri].txnType  = txnInp.value; });
+    if (narrInp) narrInp.addEventListener('input',  () => { _pmRows[ri].narration = narrInp.value; });
     if (clearBtn) {
       clearBtn.addEventListener('click', () => { _pmRows[ri] = _blankRow(); _refreshPmRow(ri); _updatePmHeader(); });
     }
@@ -538,7 +559,9 @@ window.Pages['client-master'] = (() => {
 
     document.getElementById('pm-save-btn')?.addEventListener('click', () => {
       try {
-        const toSave = _pmRows.filter(r => r.vendorId || r.amount).map(r => ({ vendorId: r.vendorId, amount: r.amount }));
+        const toSave = _pmRows
+          .filter(r => r.vendorId || r.amount || r.narration)
+          .map(r => ({ vendorId: r.vendorId, amount: r.amount, txnType: r.txnType || 'N', narration: r.narration || '' }));
         localStorage.setItem('pm_entries', JSON.stringify(toSave));
         Utils.showToast('Payment entries saved');
       } catch { Utils.showToast('Failed to save', 'error'); }
@@ -547,25 +570,56 @@ window.Pages['client-master'] = (() => {
     document.getElementById('pm-excel-btn')?.addEventListener('click', () => {
       const filled = _pmRows.filter(r => r.vendorId && r.amount && parseFloat(r.amount) > 0);
       if (!filled.length) { Utils.showToast('No filled entries to export', 'error'); return; }
+
       const today = new Date();
-      const dd = String(today.getDate()).padStart(2,'0'), mm = String(today.getMonth()+1).padStart(2,'0'), yyyy = today.getFullYear();
+      const dd = String(today.getDate()).padStart(2,'0');
+      const mm = String(today.getMonth()+1).padStart(2,'0');
+      const yyyy = today.getFullYear();
       const dateStr = dd + '/' + mm + '/' + yyyy;
-      function q(s) { return '"' + String(s||'').replace(/"/g,'""') + '"'; }
-      const hdr = ['Transaction Type','Beneficiary Code','Beneficiary Account Number','Transaction Amount','Beneficiary Name','Drawee Location in case of Demand Draft','DD Printing Location','Beneficiary Address 1','Beneficiary Address 2','Beneficiary Address 3','Beneficiary Address 4','Beneficiary Address 5','Instruction Reference Number','Customer Reference Number','Payment details 1','Payment details 2','Payment details 3','Payment details 4','Payment details 5','Payment details 6','Payment details 7','Cheque Number','Chq / Trn Date','MICR Number','IFSC Code','Beneficiary Bank Name','Beneficiary Bank Branch Name','Beneficiary email id'];
+
+      // Exact RBI CBX Bulk Upload format — 10 columns
+      // Col 3 (Account No) must start with ' to prevent Excel from stripping leading zeros
+      function qf(s) { return '"' + String(s||'').replace(/"/g,'""') + '"'; }
+
+      const hdr = [
+        'Transaction Type',
+        'Beneficiary Code',
+        'Beneficiary Account Number',
+        'Transaction Amount',
+        'Beneficiary Name',
+        'Instruction Reference Number',
+        'Debit Statement Narration',
+        'Chq / Trn Date',
+        'IFSC Code',
+        'Beneficiary email id',
+      ];
+
       const csvRows = [hdr.join(',')];
       let sno = 1;
       filled.forEach(entry => {
         const v = _list.find(x => String(x.id) === String(entry.vendorId));
         if (!v) return;
-        csvRows.push(['N', sno++, q(v.account_no), parseFloat(entry.amount||0).toFixed(2), q(v.name), '','','','','','','','','','','','','','','','','', dateStr, '', q(v.ifsc_code), q(v.bank_name), q(v.branch_name), ''].join(','));
+        csvRows.push([
+          entry.txnType || 'N',                          // Transaction Type
+          sno++,                                          // Beneficiary Code (serial)
+          qf("'" + (v.account_no || '')),                // Account No — prefixed ' per bank spec
+          parseFloat(entry.amount || 0).toFixed(2),      // Amount
+          qf(v.name),                                     // Beneficiary Name
+          qf(entry.narration || ''),                      // Instruction Reference Number
+          '',                                             // Debit Statement Narration (blank)
+          dateStr,                                        // Chq / Trn Date DD/MM/YYYY
+          qf(v.ifsc_code || ''),                          // IFSC Code
+          '',                                             // Beneficiary email id (blank)
+        ].join(','));
       });
-      const csv = '﻿' + csvRows.join('\r\n');
+
+      const csv  = csvRows.join('\r\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
-      a.href = url; a.download = 'neft_payment_' + yyyy + mm + dd + '.csv';
+      a.href = url; a.download = 'RBI_Bulk_' + yyyy + mm + dd + '.csv';
       document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-      Utils.showToast('NEFT payment file downloaded');
+      Utils.showToast('RBI bulk payment file downloaded');
     });
   }
 
