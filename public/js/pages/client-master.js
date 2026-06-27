@@ -989,6 +989,13 @@ window.Pages['client-master'] = (() => {
     document.getElementById('tab-payments').addEventListener('click', () => { _tab = 'payments'; _render(); });
     document.getElementById('tab-history') .addEventListener('click', async () => {
       _tab = 'history'; _phOpenBatch = null;
+      ['tab-vendors','tab-payments','tab-history'].forEach(id => {
+        const b = document.getElementById(id); if (!b) return;
+        const a = id === 'tab-history';
+        b.style.color        = a ? 'var(--color-primary)' : '#64748b';
+        b.style.borderBottom = '2px solid ' + (a ? 'var(--color-primary)' : 'transparent');
+        b.style.fontWeight   = a ? '700' : '500';
+      });
       const content = document.getElementById('cm-tab-content');
       if (content) content.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:300px;"><div style="text-align:center;"><div style="width:36px;height:36px;border-radius:50%;border:3px solid #f1f5f9;border-top-color:var(--color-primary);animation:spin .7s linear infinite;margin:0 auto 12px;"></div><div style="font-size:13px;color:#94a3b8;">Loading history…</div></div></div>';
       await _phLoad();
