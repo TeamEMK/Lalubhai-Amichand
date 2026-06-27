@@ -965,17 +965,13 @@ window.Pages['client-master'] = (() => {
       // ── Header card
       + '<div style="background:#fff;border-radius:16px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,.05);overflow:hidden;">'
 
-        // Icon + action row
-        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:20px 22px 18px;">'
-          + '<div style="width:44px;height:44px;border-radius:13px;background:var(--color-primary-light);display:grid;place-items:center;flex-shrink:0;">'
-            + '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4 8 4v14M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1"/></svg>'
-          + '</div>'
-          + (_tab === 'vendors' && _canEdit
-            ? '<button id="cm-add-btn" style="display:flex;align-items:center;gap:7px;padding:9px 20px;border-radius:10px;background:var(--color-primary);color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px var(--color-primary-ring);" onmouseenter="this.style.filter=\'brightness(.9)\'" onmouseleave="this.style.filter=\'none\'">'
-              + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Add Vendor'
-            + '</button>'
-            : '')
-        + '</div>'
+        + (_tab === 'vendors' && _canEdit
+          ? '<div style="display:flex;align-items:center;justify-content:flex-end;padding:14px 22px 0;">'
+              + '<button id="cm-add-btn" style="display:flex;align-items:center;gap:7px;padding:9px 20px;border-radius:10px;background:var(--color-primary);color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px var(--color-primary-ring);" onmouseenter="this.style.filter=\'brightness(.9)\'" onmouseleave="this.style.filter=\'none\'">'
+                + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Add Vendor'
+              + '</button>'
+            + '</div>'
+          : '')
 
         // 3-tab bar
         + '<div style="display:flex;gap:0;border-top:1px solid #f1f5f9;padding:0 10px;">'
