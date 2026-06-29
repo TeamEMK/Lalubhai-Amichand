@@ -903,40 +903,45 @@ app.get('/api/users', requireAuth, async (req, res) => {
 app.post('/api/users', requireAuth, async (req, res) => {
   const body = req.body;
   if (Array.isArray(body.bulk)) {
-    let inserted=0; const errors=[];
-    if (!USE_DB) {
-      const store = await readStore();
-      store.users = store.users || [];
+    try {
+      let inserted=0; const errors=[];
+      if (!USE_DB) {
+        const store = await readStore();
+        store.users = store.users || [];
+        for (const [i,row] of body.bulk.entries()) {
+          const name=(row.name||'').trim(); const email=(row.email||'').trim().toLowerCase();
+          if (!name||!email) { errors.push(`Row ${i+1}: name/email missing`); continue; }
+          if (store.users.find(u=>u.email===email)) { errors.push(`Row ${i+1}: ${email} already exists`); continue; }
+          const lastNum = store.users.reduce((max,u)=>{ const n=parseInt((u.id||'').replace(/[^0-9]/g,''))||0; return n>max?n:max; },0);
+          const id = 'U'+(lastNum+1).toString().padStart(3,'0');
+          const roles = parseRoles(row.role||'', row.user_role||'');
+          const hash = row.password ? await bcrypt.hash(row.password, 10) : null;
+          store.users.push({ id, name, email, phone:row.phone||'', department:row.department||'', roles, active:true, password_hash:hash, createdAt:new Date().toISOString() });
+          inserted++;
+        }
+        await writeStore(store);
+        return res.status(201).json({ success:true, inserted, errors });
+      }
+      await ensureSchema();
       for (const [i,row] of body.bulk.entries()) {
         const name=(row.name||'').trim(); const email=(row.email||'').trim().toLowerCase();
         if (!name||!email) { errors.push(`Row ${i+1}: name/email missing`); continue; }
-        if (store.users.find(u=>u.email===email)) { errors.push(`Row ${i+1}: ${email} already exists`); continue; }
-        const lastNum = store.users.reduce((max,u)=>{ const n=parseInt((u.id||'').replace(/[^0-9]/g,''))||0; return n>max?n:max; },0);
+        const ex = await q('SELECT id FROM users WHERE email = $1', [email]);
+        if (ex.length) { errors.push(`Row ${i+1}: ${email} already exists`); continue; }
+        const last = await q('SELECT id FROM users ORDER BY id DESC LIMIT 1');
+        const lastNum = last.length ? parseInt((last[0].id||'U000').replace('U',''))||0 : 0;
         const id = 'U'+(lastNum+1).toString().padStart(3,'0');
         const roles = parseRoles(row.role||'', row.user_role||'');
         const hash = row.password ? await bcrypt.hash(row.password, 10) : null;
-        store.users.push({ id, name, email, phone:row.phone||'', department:row.department||'', roles, active:true, password_hash:hash, createdAt:new Date().toISOString() });
+        await pool.query('INSERT INTO users (id,name,email,phone,department,roles,active,password_hash,created_at) VALUES ($1,$2,$3,$4,$5,$6,1,$7,NOW())', [id,name,email,row.phone||'',row.department||'',roles.join(','),hash]);
         inserted++;
       }
-      await writeStore(store);
+      syncUsers_gs().catch(()=>{});
       return res.status(201).json({ success:true, inserted, errors });
+    } catch(e) {
+      console.error('POST /api/users bulk error:', e.message);
+      return res.status(500).json({ error: e.message || 'Bulk insert failed' });
     }
-    await ensureSchema();
-    for (const [i,row] of body.bulk.entries()) {
-      const name=(row.name||'').trim(); const email=(row.email||'').trim().toLowerCase();
-      if (!name||!email) { errors.push(`Row ${i+1}: name/email missing`); continue; }
-      const ex = await q('SELECT id FROM users WHERE email = $1', [email]);
-      if (ex.length) { errors.push(`Row ${i+1}: ${email} already exists`); continue; }
-      const last = await q('SELECT id FROM users ORDER BY id DESC LIMIT 1');
-      const lastNum = last.length ? parseInt((last[0].id||'U000').replace('U',''))||0 : 0;
-      const id = 'U'+(lastNum+1).toString().padStart(3,'0');
-      const roles = parseRoles(row.role||'', row.user_role||'');
-      const hash = row.password ? await bcrypt.hash(row.password, 10) : null;
-      await pool.query('INSERT INTO users (id,name,email,phone,department,roles,active,password_hash,created_at) VALUES ($1,$2,$3,$4,$5,$6,1,$7,NOW())', [id,name,email,row.phone||'',row.department||'',roles.join(','),hash]);
-      inserted++;
-    }
-    syncUsers_gs().catch(()=>{});
-    return res.status(201).json({ success:true, inserted, errors });
   }
 
   if (!body.name||!body.email) return res.status(400).json({ error:'Name and email required' });
