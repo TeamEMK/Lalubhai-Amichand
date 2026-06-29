@@ -21,6 +21,7 @@ function getMailer() {
 
 async function sendDelegationEmail({ toEmail, toName, description, dueDate, priority, delegatedByName, url, remarks }) {
   const mailer = getMailer();
+  console.log('[email] sendDelegationEmail → toEmail:', toEmail, '| mailer ready:', !!mailer, '| SMTP_USER:', process.env.SMTP_USER || '(not set)');
   if (!mailer || !toEmail) return;
   try {
     await mailer.sendMail({
@@ -43,6 +44,7 @@ async function sendDelegationEmail({ toEmail, toName, description, dueDate, prio
         </div>
       `,
     });
+    console.log('[email] Delegation email sent to:', toEmail);
   } catch (e) {
     console.error('[email] Failed to send delegation email:', e.message);
   }
