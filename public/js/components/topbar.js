@@ -11,7 +11,6 @@ window.Topbar = {
     'fms':          'FMS Master',
     'profile':      'Profile',
     'leave-tracker':'Leave Tracker',
-    'daily-reports':'Daily Reports',
     'meetings':     'Meetings',
     'client-master':'',
     'daily-task':   'Daily Task',
