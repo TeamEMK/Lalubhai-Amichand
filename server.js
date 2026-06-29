@@ -923,8 +923,8 @@ app.post('/api/users', requireAuth, async (req, res) => {
         return res.status(201).json({ success:true, inserted, errors });
       }
       await ensureSchema();
-      const lastRow = await q('SELECT id FROM users ORDER BY LENGTH(id) DESC, id DESC LIMIT 1');
-      let lastNum = lastRow.length ? parseInt((lastRow[0].id||'U000').replace(/[^0-9]/g,''))||0 : 0;
+      const maxRow = await q("SELECT MAX(CAST(SUBSTRING(id,2) AS UNSIGNED)) AS maxnum FROM users WHERE id REGEXP '^U[0-9]+'");
+      let lastNum = (maxRow.length && maxRow[0].maxnum) ? parseInt(maxRow[0].maxnum)||0 : 0;
       for (const [i,row] of body.bulk.entries()) {
         const name=(row.name||'').trim(); const email=(row.email||'').trim().toLowerCase();
         if (!name||!email) { errors.push(`Row ${i+1}: name/email missing`); continue; }
@@ -934,8 +934,13 @@ app.post('/api/users', requireAuth, async (req, res) => {
         const id = 'U'+lastNum.toString().padStart(3,'0');
         const roles = parseRoles(row.role||'', row.user_role||'');
         const hash = row.password ? await bcrypt.hash(row.password, 10) : null;
-        await pool.query('INSERT INTO users (id,name,email,phone,department,roles,active,password_hash,created_at) VALUES ($1,$2,$3,$4,$5,$6,1,$7,NOW())', [id,name,email,row.phone||'',row.department||'',roles.join(','),hash]);
-        inserted++;
+        try {
+          await pool.query('INSERT INTO users (id,name,email,phone,department,roles,active,password_hash,created_at) VALUES ($1,$2,$3,$4,$5,$6,1,$7,NOW())', [id,name,email,row.phone||'',row.department||'',roles.join(','),hash]);
+          inserted++;
+        } catch(ie) {
+          if (ie.code==='ER_DUP_ENTRY'||ie.code==='23505') { errors.push(`Row ${i+1}: ${email} already exists (id conflict)`); lastNum--; }
+          else throw ie;
+        }
       }
       syncUsers_gs().catch(()=>{});
       return res.status(201).json({ success:true, inserted, errors });
