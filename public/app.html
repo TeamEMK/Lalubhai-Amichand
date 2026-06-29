@@ -7,11 +7,11 @@
   <link rel="icon" type="image/png" href="/logo.png" />
   <link rel="shortcut icon" href="/logo.png" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/style.css?v=5" />
   <!-- Apply saved theme before first paint to prevent FOUC -->
   <script>
     (function(){
-      var t=localStorage.getItem('erp-theme')||'indigo';
+      var t=localStorage.getItem('erp-theme-v2')||'indigo';
       var M={indigo:['#5e6ad2','#4f5ab8','rgba(94,106,210,.12)','rgba(94,106,210,.18)','#f7f8fa'],orange:['#C4714A','#b05a38','rgba(196,113,74,.14)','rgba(196,113,74,.15)','#f7f8fa'],blue:['#2563eb','#1d4ed8','rgba(37,99,235,.14)','rgba(37,99,235,.15)','#f7f8fa'],green:['#059669','#047857','rgba(5,150,105,.14)','rgba(5,150,105,.15)','#f7f8fa'],purple:['#7c3aed','#6d28d9','rgba(124,58,237,.14)','rgba(124,58,237,.15)','#f7f8fa'],rose:['#e11d48','#be123c','rgba(225,29,72,.14)','rgba(225,29,72,.15)','#f7f8fa'],teal:['#0d9488','#0f766e','rgba(13,148,136,.14)','rgba(13,148,136,.15)','#f7f8fa']};
       var v=M[t]||M.orange,r=document.documentElement;
       r.style.setProperty('--color-primary',v[0]);r.style.setProperty('--color-primary-dark',v[1]);r.style.setProperty('--color-primary-light',v[2]);r.style.setProperty('--color-primary-ring',v[3]);r.style.setProperty('--app-bg',v[4]);r.dataset.theme=t;
@@ -725,7 +725,7 @@
 <script src="/js/utils.js?v=5"></script>
 <script src="/js/theme.js?v=5"></script>
 <script src="/js/router.js?v=5"></script>
-<script src="/js/components/sidebar.js?v=6"></script>
+<script src="/js/components/sidebar.js?v=7"></script>
 <script src="/js/components/topbar.js?v=6"></script>
 
 <!-- Pages -->
