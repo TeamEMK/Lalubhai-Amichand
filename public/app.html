@@ -11,8 +11,8 @@
   <!-- Apply saved theme before first paint to prevent FOUC -->
   <script>
     (function(){
-      var t=localStorage.getItem('erp-theme')||'orange';
-      var M={orange:['#C4714A','#b05a38','rgba(196,113,74,.14)','rgba(196,113,74,.15)','#f4f6f9'],blue:['#2563eb','#1d4ed8','rgba(37,99,235,.14)','rgba(37,99,235,.15)','#eef3ff'],green:['#059669','#047857','rgba(5,150,105,.14)','rgba(5,150,105,.15)','#edfaf5'],purple:['#7c3aed','#6d28d9','rgba(124,58,237,.14)','rgba(124,58,237,.15)','#f3eeff'],rose:['#e11d48','#be123c','rgba(225,29,72,.14)','rgba(225,29,72,.15)','#fff0f3'],teal:['#0d9488','#0f766e','rgba(13,148,136,.14)','rgba(13,148,136,.15)','#edfafa']};
+      var t=localStorage.getItem('erp-theme')||'indigo';
+      var M={indigo:['#5e6ad2','#4f5ab8','rgba(94,106,210,.12)','rgba(94,106,210,.18)','#f7f8fa'],orange:['#C4714A','#b05a38','rgba(196,113,74,.14)','rgba(196,113,74,.15)','#f7f8fa'],blue:['#2563eb','#1d4ed8','rgba(37,99,235,.14)','rgba(37,99,235,.15)','#f7f8fa'],green:['#059669','#047857','rgba(5,150,105,.14)','rgba(5,150,105,.15)','#f7f8fa'],purple:['#7c3aed','#6d28d9','rgba(124,58,237,.14)','rgba(124,58,237,.15)','#f7f8fa'],rose:['#e11d48','#be123c','rgba(225,29,72,.14)','rgba(225,29,72,.15)','#f7f8fa'],teal:['#0d9488','#0f766e','rgba(13,148,136,.14)','rgba(13,148,136,.15)','#f7f8fa']};
       var v=M[t]||M.orange,r=document.documentElement;
       r.style.setProperty('--color-primary',v[0]);r.style.setProperty('--color-primary-dark',v[1]);r.style.setProperty('--color-primary-light',v[2]);r.style.setProperty('--color-primary-ring',v[3]);r.style.setProperty('--app-bg',v[4]);r.dataset.theme=t;
     })();
@@ -20,24 +20,24 @@
   <style>
     /* ── Base resets ─────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; }
-    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; }
+    body { margin: 0; font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f7f8fa; }
 
     /* ── Sidebar collapse/expand ─────────────────────────────────── */
     #sidebar {
       position: fixed;
       left: 0; top: 0;
       height: 100vh;
-      width: 64px;
-      background: #09090b;
-      border-right: 1px solid #1c1c1f;
-      box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+      width: 52px;
+      background: #101013;
+      border-right: 1px solid #1c1c22;
+      box-shadow: 1px 0 0 rgba(255,255,255,0.04);
       display: flex;
       flex-direction: column;
       z-index: 40;
       overflow: hidden;
-      transition: width 200ms ease-out;
+      transition: width 220ms cubic-bezier(0.4,0,0.2,1);
     }
-    #sidebar:hover { width: 230px; }
+    #sidebar:hover { width: 228px; }
 
     /* Labels / user-card text hidden until hover */
     #sidebar .sb-label,
@@ -68,34 +68,35 @@
     .sb-link {
       display: flex;
       align-items: center;
-      gap: 12px;
-      height: 36px;
-      padding: 0 10px;
-      border-radius: 8px;
+      gap: 10px;
+      height: 34px;
+      padding: 0 8px;
+      border-radius: 7px;
       font-size: 12.5px;
       font-weight: 500;
-      color: #ffffff;
+      color: #a1a1aa;
       text-decoration: none;
       position: relative;
-      transition: background 150ms;
+      transition: background 140ms, color 140ms;
       cursor: pointer;
     }
-    .sb-link:hover { background: rgba(255,255,255,0.07); }
+    .sb-link:hover { background: rgba(255,255,255,0.06); color: #e4e4e7; }
     .sb-link.active {
-      background: rgba(46,114,181,0.18);
-      font-weight: 700;
+      background: rgba(94,106,210,0.14);
+      color: #e4e4e7;
+      font-weight: 600;
     }
     .sb-link .sb-active-bar {
       display: none;
       position: absolute;
-      left: 0; top: 6px; bottom: 6px;
-      width: 3px;
-      border-radius: 0 3px 3px 0;
-      background: #2E72B5;
+      left: 0; top: 5px; bottom: 5px;
+      width: 2px;
+      border-radius: 0 2px 2px 0;
+      background: #5e6ad2;
     }
     .sb-link.active .sb-active-bar { display: block; }
     .sb-link svg { flex-shrink: 0; }
-    .sb-link.active svg { color: #5B9ED7; }
+    .sb-link.active svg { color: #818cf8; }
 
     /* Pending badge */
     .sb-badge {
@@ -122,19 +123,32 @@
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
-      padding: 8px 0;
+      padding: 4px 0;
     }
-    #sb-nav::-webkit-scrollbar { width: 4px; }
+    #sb-nav::-webkit-scrollbar { width: 3px; }
     #sb-nav::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
 
-    .sb-section { margin-bottom: 4px; }
-    .sb-section-inner { padding: 0 8px; display: flex; flex-direction: column; gap: 2px; }
+    .sb-section { margin-bottom: 6px; }
+    .sb-section-label {
+      padding: 10px 12px 3px;
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: #3f3f46;
+      opacity: 0;
+      transition: opacity 220ms;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    #sidebar:hover .sb-section-label { opacity: 1; }
+    .sb-section-inner { padding: 0 6px; display: flex; flex-direction: column; gap: 2px; }
 
     /* User card */
     #sb-user {
       padding: 8px 8px 12px;
       flex-shrink: 0;
-      border-top: 1px solid #1c1c1f;
+      border-top: 1px solid #1c1c22;
     }
     #sb-user-inner {
       display: flex;
@@ -182,13 +196,13 @@
     /* ── App Shell layout ────────────────────────────────────────── */
     #app-shell { display: none; min-height: 100vh; }
     #shell-body {
-      margin-left: 64px;
+      margin-left: 52px;
       flex: 1;
       min-width: 0;
       display: flex;
       flex-direction: column;
       min-height: 100vh;
-      width: calc(100vw - 64px);
+      width: calc(100vw - 52px);
       background: var(--app-bg);
     }
     #main-content {
@@ -219,7 +233,7 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .login-card { animation: fadeSlide 0.5s cubic-bezier(0.16,1,0.3,1) both; }
     .login-input { transition: border-color 0.15s, box-shadow 0.15s; outline: none; }
-    .login-input:focus { border-color: #C4714A !important; box-shadow: 0 0 0 3px rgba(196,113,74,0.12); }
+    .login-input:focus { border-color: #C4714A !important; box-shadow: 0 0 0 3px rgba(196,113,74,0.14); }
 
     /* ── Utility: page hidden by default ────────────────────────── */
     .page { display: none; }
@@ -453,6 +467,7 @@
 
       <!-- WORKSPACE -->
       <div class="sb-section">
+        <div class="sb-section-label">Workspace</div>
         <div class="sb-section-inner">
 
           <a class="sb-link" data-route="dashboard" href="#dashboard">
@@ -495,6 +510,7 @@
 
       <!-- OPERATIONS (admin-only items shown/hidden by sidebar.js) -->
       <div class="sb-section" id="sb-section-operations">
+        <div class="sb-section-label">Operations</div>
         <div class="sb-section-inner">
 
           <a class="sb-link" data-route="fms" href="#fms" id="sb-link-fms">
@@ -544,6 +560,7 @@
 
       <!-- DAILY -->
       <div class="sb-section">
+        <div class="sb-section-label">Daily</div>
         <div class="sb-section-inner">
 
           <a class="sb-link" data-route="daily-task" href="#daily-task">
@@ -589,6 +606,7 @@
 
       <!-- ADMINISTRATION -->
       <div class="sb-section">
+        <div class="sb-section-label">Admin</div>
         <div class="sb-section-inner">
 
           <a class="sb-link" data-route="users" href="#users" id="sb-link-users">

@@ -66,16 +66,17 @@ window.Sidebar = {
 
     const active = activeRoute === item.route;
     const icon   = this._icons[item.icon] || '';
-    const badge  = item.badge && isAdmin && pendingCount > 0
-      ? `<span style="position:absolute;top:-6px;right:-6px;min-width:14px;height:14px;padding:0 3px;border-radius:9999px;font-size:9px;font-weight:700;color:#fff;background:#C4714A;box-shadow:0 0 0 2px #09090b;display:flex;align-items:center;justify-content:center;line-height:1;">${pendingCount}</span>`
+    const badge  = item.badge && pendingCount > 0
+      ? `<span style="position:absolute;top:-5px;right:-5px;min-width:14px;height:14px;padding:0 3px;border-radius:9999px;font-size:9px;font-weight:700;color:#fff;background:var(--color-primary);box-shadow:0 0 0 2px #101013;display:flex;align-items:center;justify-content:center;line-height:1;">${pendingCount}</span>`
       : '';
 
-    const activeBg    = active ? 'var(--color-primary-light)' : 'transparent';
-    const activeBar   = active
-      ? `<span style="position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:0 3px 3px 0;background:var(--color-primary);"></span>`
+    const activeBg   = active ? 'var(--color-primary-light)' : 'transparent';
+    const activeBar  = active
+      ? `<span style="position:absolute;left:0;top:5px;bottom:5px;width:2px;border-radius:0 2px 2px 0;background:var(--color-primary);"></span>`
       : '';
-    const iconColor   = active ? 'var(--color-primary)' : 'currentColor';
-    const fontWeight  = active ? '700' : '500';
+    const iconColor  = active ? 'var(--color-primary)' : '#71717a';
+    const textColor  = active ? '#e4e4e7' : '#a1a1aa';
+    const fontWeight = active ? '600' : '500';
 
     return `
       <a data-route="${item.route}"
@@ -83,18 +84,18 @@ window.Sidebar = {
          onclick="Router.navigate('${item.route}');return false;"
          title="${item.label}"
          style="
-           display:flex;align-items:center;gap:12px;
-           height:36px;padding:0 10px;
-           border-radius:8px;
+           display:flex;align-items:center;gap:10px;
+           height:34px;padding:0 8px;
+           border-radius:7px;
            font-size:12.5px;font-weight:${fontWeight};
-           color:#ffffff;text-decoration:none;
+           color:${textColor};text-decoration:none;
            background:${activeBg};
            position:relative;
-           transition:background 0.15s;
+           transition:background 0.14s,color 0.14s;
            white-space:nowrap;
          "
-         onmouseenter="if(this.dataset.active!=='1'){this.style.background='rgba(255,255,255,0.07)';}"
-         onmouseleave="if(this.dataset.active!=='1'){this.style.background='transparent';}"
+         onmouseenter="if(this.dataset.active!=='1'){this.style.background='rgba(255,255,255,0.06)';this.style.color='#e4e4e7';}"
+         onmouseleave="if(this.dataset.active!=='1'){this.style.background='transparent';this.style.color='#a1a1aa';}"
          ${active ? 'data-active="1"' : ''}
       >
         ${activeBar}
@@ -102,7 +103,7 @@ window.Sidebar = {
           ${icon}
           ${badge}
         </span>
-        <span class="sb-label" style="opacity:0;transition:opacity 0.2s;white-space:nowrap;overflow:hidden;">
+        <span class="sb-label" style="opacity:0;transition:opacity 0.22s;white-space:nowrap;overflow:hidden;">
           ${item.label}
         </span>
       </a>`;
@@ -120,11 +121,11 @@ window.Sidebar = {
         .join('');
       if (!itemsHTML.trim()) return '';
       return `
-        <div style="margin-bottom:10px;">
-          <div class="sb-label" style="padding:0 18px;margin-bottom:3px;opacity:0;transition:opacity .2s;">
-            <span style="font-size:9px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#3f3f46;">${sec.title}</span>
+        <div style="margin-bottom:6px;">
+          <div class="sb-label" style="padding:10px 14px 3px;opacity:0;transition:opacity .22s;">
+            <span style="font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#3f3f46;">${sec.title}</span>
           </div>
-          <div style="padding:0 8px;display:flex;flex-direction:column;gap:2px;">
+          <div style="padding:0 6px;display:flex;flex-direction:column;gap:2px;">
             ${itemsHTML}
           </div>
         </div>`;
@@ -132,9 +133,9 @@ window.Sidebar = {
 
     return `
       <style>
-        #sidebar { transition: width 0.2s ease-out; }
-        #sidebar:hover { width: 230px !important; }
-        #sidebar:hover .sb-label { opacity: 1 !important; }
+        #sidebar { transition: width 0.22s cubic-bezier(0.4,0,0.2,1); }
+        #sidebar:hover { width: 228px !important; }
+        #sidebar:hover .sb-label    { opacity: 1 !important; }
         #sidebar:hover .sb-brand-name { opacity: 1 !important; }
         #sidebar:hover .sb-user-info  { opacity: 1 !important; }
         #sidebar:hover .sb-signout    { opacity: 1 !important; }
@@ -142,31 +143,31 @@ window.Sidebar = {
       </style>
 
       <!-- Brand -->
-      <div style="height:56px;padding:0 12px;display:flex;align-items:center;gap:10px;flex-shrink:0;border-bottom:1px solid #1c1c1f;">
-        <img src="/logo.png" alt="Logo" width="32" height="32" style="flex-shrink:0;border-radius:7px;object-fit:contain;background:#fff;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
-        <svg width="32" height="32" viewBox="0 0 28 28" fill="none" style="flex-shrink:0;display:none;">
+      <div style="height:52px;padding:0 10px;display:flex;align-items:center;gap:10px;flex-shrink:0;border-bottom:1px solid #1c1c22;">
+        <img src="/logo.png" alt="Logo" width="30" height="30" style="flex-shrink:0;border-radius:7px;object-fit:contain;background:#fff;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+        <svg width="30" height="30" viewBox="0 0 28 28" fill="none" style="flex-shrink:0;display:none;">
           <rect width="28" height="28" rx="7" fill="#C4714A"/>
           <path d="M7 20V10l7-4 7 4v10" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M11 20v-5h6v5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <div class="sb-brand-name" style="opacity:0;transition:opacity 0.2s;white-space:nowrap;overflow:hidden;">
-          <div style="font-size:13px;font-weight:600;letter-spacing:-0.02em;color:#f4f4f5;">Lallubhai Amichand</div>
+        <div class="sb-brand-name" style="opacity:0;transition:opacity 0.22s;white-space:nowrap;overflow:hidden;min-width:0;">
+          <div style="font-size:13px;font-weight:600;letter-spacing:-0.02em;color:#e4e4e7;white-space:nowrap;">Lallubhai Amichand</div>
         </div>
       </div>
 
       <!-- Nav -->
-      <nav style="flex:1;overflow-y:auto;overflow-x:hidden;padding:8px 0;">
+      <nav style="flex:1;overflow-y:auto;overflow-x:hidden;padding:6px 0;">
         ${sectionsHTML}
       </nav>
 
       <!-- User card -->
-      <div style="padding:8px;border-top:1px solid #1c1c1f;flex-shrink:0;">
-        <div style="display:flex;align-items:center;gap:10px;padding:6px;border-radius:8px;">
-          <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#ec4899);display:grid;place-items:center;color:#fff;font-weight:700;font-size:11px;flex-shrink:0;">
+      <div style="padding:6px 6px 10px;border-top:1px solid #1c1c22;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:8px;padding:6px;border-radius:7px;transition:background .14s;cursor:default;" onmouseenter="this.style.background='rgba(255,255,255,0.05)';" onmouseleave="this.style.background='transparent';">
+          <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#6d28d9,#5e6ad2);display:grid;place-items:center;color:#fff;font-weight:700;font-size:11px;flex-shrink:0;letter-spacing:.02em;">
             ${initials}
           </div>
-          <div class="sb-user-info" style="opacity:0;transition:opacity 0.2s;min-width:0;flex:1;overflow:hidden;">
-            <div style="font-size:12px;font-weight:500;color:#e4e4e7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${user?.name || 'User'}</div>
+          <div class="sb-user-info" style="opacity:0;transition:opacity 0.22s;min-width:0;flex:1;overflow:hidden;">
+            <div style="font-size:12px;font-weight:600;color:#e4e4e7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${user?.name || 'User'}</div>
             <div style="font-size:10px;color:#52525b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${roles}</div>
           </div>
           <button
@@ -176,13 +177,13 @@ window.Sidebar = {
             style="
               opacity:0;
               flex-shrink:0;
-              padding:4px;border-radius:6px;
+              padding:5px;border-radius:6px;
               background:transparent;border:none;cursor:pointer;
-              color:#3f3f46;
-              transition:color 0.15s,background 0.15s,opacity 0.2s;
+              color:#52525b;
+              transition:color 0.14s,background 0.14s,opacity 0.22s;
             "
-            onmouseenter="this.style.color='#f87171';this.style.background='rgba(220,38,38,0.1)';"
-            onmouseleave="this.style.color='#3f3f46';this.style.background='transparent';"
+            onmouseenter="this.style.color='#f87171';this.style.background='rgba(220,38,38,0.12)';"
+            onmouseleave="this.style.color='#52525b';this.style.background='transparent';"
           >
             ${this._icons.signout}
           </button>
@@ -204,16 +205,16 @@ window.Sidebar = {
     document.querySelectorAll('#sidebar [data-route]').forEach(el => {
       const isActive = el.dataset.route === activeRoute;
       el.style.background   = isActive ? 'var(--color-primary-light)' : 'transparent';
-      el.style.fontWeight   = isActive ? '700' : '500';
+      el.style.fontWeight   = isActive ? '600' : '500';
+      el.style.color        = isActive ? '#e4e4e7' : '#a1a1aa';
       el.dataset.active     = isActive ? '1' : '';
       const iconSpan = el.querySelector('span');
-      if (iconSpan) iconSpan.style.color = isActive ? 'var(--color-primary)' : 'currentColor';
-      // active bar
+      if (iconSpan) iconSpan.style.color = isActive ? 'var(--color-primary)' : '#71717a';
       let bar = el.querySelector('.sb-active-bar');
       if (isActive && !bar) {
         bar = document.createElement('span');
         bar.className = 'sb-active-bar';
-        bar.style.cssText = 'position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:0 3px 3px 0;background:var(--color-primary);';
+        bar.style.cssText = 'position:absolute;left:0;top:5px;bottom:5px;width:2px;border-radius:0 2px 2px 0;background:var(--color-primary);';
         el.prepend(bar);
       } else if (!isActive && bar) {
         bar.remove();
@@ -262,13 +263,13 @@ window.Sidebar = {
     // Apply sidebar shell styles
     el.style.cssText = `
       position:fixed;left:0;top:0;
-      height:100vh;width:64px;
-      background:#09090b;
-      border-right:1px solid #1c1c1f;
-      box-shadow:4px 0 24px rgba(0,0,0,0.5);
+      height:100vh;width:52px;
+      background:#101013;
+      border-right:1px solid #1c1c22;
+      box-shadow:1px 0 0 rgba(255,255,255,0.04);
       display:flex;flex-direction:column;
       z-index:40;overflow:hidden;
-      transition:width 0.2s ease-out;
+      transition:width 0.22s cubic-bezier(0.4,0,0.2,1);
     `;
 
     const isAdmin = this._isAdmin(user);

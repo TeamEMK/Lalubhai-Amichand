@@ -6,11 +6,15 @@
 /* ── CSS Custom Properties (theme vars) ──────────────────────────── */
 
 :root {
-  --color-primary:       #C4714A;
-  --color-primary-dark:  #b05a38;
-  --color-primary-light: rgba(196,113,74,.14);
-  --color-primary-ring:  rgba(196,113,74,.15);
-  --app-bg:              #f4f6f9;
+  --color-primary:       #5e6ad2;
+  --color-primary-dark:  #4f5ab8;
+  --color-primary-light: rgba(94,106,210,.12);
+  --color-primary-ring:  rgba(94,106,210,.18);
+  --app-bg:              #f7f8fa;
+
+  /* Brand accent kept for login CTA only */
+  --color-brand:         #C4714A;
+  --color-brand-ring:    rgba(196,113,74,.15);
 }
 
 /* ── Base ────────────────────────────────────────────────────────── */
@@ -74,9 +78,9 @@ html, body {
 
 .card {
   background: #ffffff;
-  border-radius: 14px;
-  border: 1px solid #e8edf3;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.04);
+  border-radius: 10px;
+  border: 1px solid #e9eaed;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
 }
 
 .card-hover {
@@ -108,7 +112,7 @@ html, body {
   letter-spacing: 0.01em;
 }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
-.btn:focus-visible { outline: 2px solid #C4714A; outline-offset: 2px; }
+.btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 
 /* ── Button Variants ─────────────────────────────────────────────── */
 
@@ -374,15 +378,44 @@ html, body {
   transition: background-color 150ms; white-space: nowrap;
 }
 .sidebar-nav-item:hover     { background: rgba(255,255,255,0.07); }
-.sidebar-nav-item.active    { background: rgba(196,113,74,0.15); font-weight: 700; }
+.sidebar-nav-item.active    { background: rgba(94,106,210,0.14); font-weight: 600; }
 .sidebar-active-bar {
   position: absolute; left: 0; top: 5px; bottom: 5px;
-  width: 3px; border-radius: 0 3px 3px 0; background: var(--color-primary);
+  width: 2px; border-radius: 0 2px 2px 0; background: #5e6ad2;
 }
 
 /* ── Login Input Focus ───────────────────────────────────────────── */
 
 .login-input:focus {
-  border-color: var(--color-primary) !important;
-  box-shadow: 0 0 0 3px var(--color-primary-ring) !important;
+  border-color: var(--color-brand) !important;
+  box-shadow: 0 0 0 3px var(--color-brand-ring) !important;
+}
+
+/* ── Stat card left accent bar (Linear style) ────────────────────── */
+
+.stat-card { position: relative; overflow: hidden; }
+.stat-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+}
+.stat-card.red::before    { background: #ef4444; }
+.stat-card.amber::before  { background: #f59e0b; }
+.stat-card.green::before  { background: #10b981; }
+.stat-card.purple::before { background: #8b5cf6; }
+.stat-card.indigo::before { background: #5e6ad2; }
+
+/* ── Empty state ─────────────────────────────────────────────────── */
+
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 3rem 1rem;
+  color: #94a3b8; text-align: center; gap: 10px;
+}
+.empty-state-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: #f1f5f9;
+  display: flex; align-items: center; justify-content: center;
 }
