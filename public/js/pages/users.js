@@ -452,8 +452,9 @@ window.Pages.users = (() => {
       <div class="rounded-xl border border-dashed border-slate-200 p-3">
         <div class="text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-2">Bulk Add Users (CSV)</div>
         <div class="flex flex-wrap items-center gap-2">
-          <input id="um-bulk-file" type="file" accept=".csv,text/csv"
-            class="text-[12px] file:mr-2 file:cursor-pointer file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-slate-700 hover:file:bg-slate-50" />
+          <input id="um-bulk-file" type="file" accept=".csv,text/csv" style="display:none" />
+          <button id="um-bulk-file-btn" type="button" class="btn-secondary !py-1.5 text-xs">Choose File</button>
+          <span id="um-bulk-filename" class="text-[12px] text-slate-500">${_bulkFile ? _bulkFile.name : 'No file chosen'}</span>
           <button id="um-bulk-upload" class="btn-success !py-1.5 text-xs" ${_bulkSaving || !_bulkFile ? 'disabled' : ''}>
             ${_bulkSaving ? 'Uploading…' : 'Upload CSV'}
           </button>
@@ -682,6 +683,9 @@ window.Pages.users = (() => {
     });
 
     // Bulk CSV
+    document.getElementById('um-bulk-file-btn')?.addEventListener('click', () => {
+      document.getElementById('um-bulk-file')?.click();
+    });
     document.getElementById('um-bulk-file')?.addEventListener('change', e => {
       _bulkFile = e.target.files?.[0] || null;
       _bulkMsg  = '';
