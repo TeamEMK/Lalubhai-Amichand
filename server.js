@@ -903,8 +903,25 @@ app.get('/api/users', requireAuth, async (req, res) => {
 app.post('/api/users', requireAuth, async (req, res) => {
   const body = req.body;
   if (Array.isArray(body.bulk)) {
-    await ensureSchema();
     let inserted=0; const errors=[];
+    if (!USE_DB) {
+      const store = await readStore();
+      store.users = store.users || [];
+      for (const [i,row] of body.bulk.entries()) {
+        const name=(row.name||'').trim(); const email=(row.email||'').trim().toLowerCase();
+        if (!name||!email) { errors.push(`Row ${i+1}: name/email missing`); continue; }
+        if (store.users.find(u=>u.email===email)) { errors.push(`Row ${i+1}: ${email} already exists`); continue; }
+        const lastNum = store.users.reduce((max,u)=>{ const n=parseInt((u.id||'').replace(/[^0-9]/g,''))||0; return n>max?n:max; },0);
+        const id = 'U'+(lastNum+1).toString().padStart(3,'0');
+        const roles = parseRoles(row.role||'', row.user_role||'');
+        const hash = row.password ? await bcrypt.hash(row.password, 10) : null;
+        store.users.push({ id, name, email, phone:row.phone||'', department:row.department||'', roles, active:true, password_hash:hash, createdAt:new Date().toISOString() });
+        inserted++;
+      }
+      await writeStore(store);
+      return res.status(201).json({ success:true, inserted, errors });
+    }
+    await ensureSchema();
     for (const [i,row] of body.bulk.entries()) {
       const name=(row.name||'').trim(); const email=(row.email||'').trim().toLowerCase();
       if (!name||!email) { errors.push(`Row ${i+1}: name/email missing`); continue; }
