@@ -282,6 +282,10 @@ window.Pages.dashboard = (function () {
             <button id="db-btn-delegate" style="padding:7px 13px;border-radius:8px;font-size:12.5px;font-weight:700;background:#C4714A;color:#fff;border:none;cursor:pointer;">
               Delegate
             </button>
+            <button id="db-btn-help-ticket" style="display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:8px;font-size:12.5px;font-weight:600;background:#0ea5e9;color:#fff;border:none;cursor:pointer;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Help Ticket
+            </button>
             ${admin ? `<button id="db-btn-transfer" style="display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:8px;font-size:12.5px;font-weight:700;background:#7c3aed;color:#fff;border:none;cursor:pointer;">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               Transfer
@@ -1105,6 +1109,9 @@ window.Pages.dashboard = (function () {
     }
     const btnChecklist = el.querySelector('#db-btn-checklist');
     if (btnChecklist) btnChecklist.addEventListener('click', () => { resetChecklistForm(); showModal('modal-checklist'); });
+
+    const btnHelpTicket = el.querySelector('#db-btn-help-ticket');
+    if (btnHelpTicket) btnHelpTicket.addEventListener('click', () => Router.navigate('help-ticket'));
     el.querySelector('#modal-checklist-close')?.addEventListener('click', () => hideModal('modal-checklist'));
     el.querySelector('#modal-checklist-cancel')?.addEventListener('click', () => hideModal('modal-checklist'));
     el.querySelector('#modal-checklist')?.addEventListener('click', () => hideModal('modal-checklist'));
