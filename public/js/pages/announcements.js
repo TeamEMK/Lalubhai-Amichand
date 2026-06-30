@@ -1,10 +1,7 @@
 window.Pages = window.Pages || {};
 
 window.Pages.announcements = (() => {
-  let _items     = [];
-  let _modalOpen = false;
-  let _form      = { title: '', message: '' };
-  let _saving    = false;
+  let _items = [];
 
   const isAdmin = () => {
     const r = window.currentUser?.roles || [];
@@ -27,73 +24,14 @@ window.Pages.announcements = (() => {
     } catch { _items = []; }
   }
 
-  async function postAnnouncement() {
-    if (!_form.title.trim()) { Utils.showToast('Title required', 'error'); return; }
-    _saving = true;
-    renderModal();
-    try {
-      await Utils.apiFetch('/api/announcements', {
-        method: 'POST',
-        body: JSON.stringify(_form),
-      });
-      _modalOpen = false;
-      _saving    = false;
-      _form      = { title: '', message: '' };
-      await loadData();
-      renderPage();
-      Utils.showToast('Announcement posted');
-    } catch (e) {
-      _saving = false;
-      renderModal();
-      Utils.showToast(e.message || 'Failed', 'error');
-    }
-  }
-
   async function deleteAnnouncement(id) {
     if (!await Utils.showConfirm('Delete this announcement?', { danger: true })) return;
     try {
-      await fetch(`/api/announcements?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      await fetch('/api/announcements?id=' + encodeURIComponent(id), { method: 'DELETE' });
       await loadData();
       renderPage();
       Utils.showToast('Deleted');
     } catch (e) { Utils.showToast(e.message || 'Failed', 'error'); }
-  }
-
-  function renderModal() {
-    const ex = document.getElementById('ann-modal');
-    if (!_modalOpen) { if (ex) ex.remove(); return; }
-    const html = `
-      <div id="ann-modal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-          <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h2 class="text-[15px] font-semibold text-slate-900">Post Announcement</h2>
-            <button id="ann-close" class="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:bg-slate-100">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-            </button>
-          </div>
-          <div class="px-6 py-5 space-y-3">
-            <div>
-              <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Title *</label>
-              <input id="ann-title" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-[13px] outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100" placeholder="Announcement title" value="${esc(_form.title)}" />
-            </div>
-            <div>
-              <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Message</label>
-              <textarea id="ann-message" rows="4" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-[13px] outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 resize-none" placeholder="Write the announcement...">${esc(_form.message)}</textarea>
-            </div>
-          </div>
-          <div class="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
-            <button id="ann-cancel" class="btn-secondary">Cancel</button>
-            <button id="ann-post" class="btn-primary" ${_saving?'disabled':''}>${_saving?'Posting…':'Post Announcement'}</button>
-          </div>
-        </div>
-      </div>`;
-    if (ex) ex.remove();
-    document.body.insertAdjacentHTML('beforeend', html);
-    document.getElementById('ann-close')?.addEventListener('click', () => { _modalOpen = false; renderModal(); });
-    document.getElementById('ann-cancel')?.addEventListener('click', () => { _modalOpen = false; renderModal(); });
-    document.getElementById('ann-title')?.addEventListener('input', e => { _form.title = e.target.value; });
-    document.getElementById('ann-message')?.addEventListener('input', e => { _form.message = e.target.value; });
-    document.getElementById('ann-post')?.addEventListener('click', postAnnouncement);
   }
 
   function renderPage() {
@@ -103,41 +41,102 @@ window.Pages.announcements = (() => {
 
     const cards = _items.length
       ? _items.map(a => `
-          <div class="card p-5">
-            <div class="flex items-start justify-between gap-3">
-              <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 grid place-items-center shrink-0" style="margin-top:1px">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="font-semibold text-slate-900 text-[14px]">${esc(a.title)}</div>
-                ${a.message ? `<p class="text-[13px] text-slate-600 mt-1 whitespace-pre-wrap">${esc(a.message)}</p>` : ''}
-                <div class="text-[11px] text-slate-400 mt-2">Posted by <strong>${esc(a.posted_by)}</strong> · ${fmt(a.created_at)}</div>
-              </div>
-              ${admin ? `<button class="ann-del shrink-0 w-7 h-7 rounded-lg grid place-items-center text-slate-300 hover:text-red-500 hover:bg-red-50" data-id="${esc(a.id)}">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
-              </button>` : ''}
+        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+          <div style="display:flex;align-items:flex-start;gap:14px;">
+            <div style="width:38px;height:38px;border-radius:12px;background:#fffbeb;color:#d97706;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
             </div>
-          </div>`).join('')
-      : `<div class="card p-10 text-center text-slate-400 text-[13px]">No announcements yet</div>`;
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:14px;font-weight:700;color:#0f172a;">${esc(a.title)}</div>
+              ${a.message ? '<p style="font-size:13px;color:#475569;margin:6px 0 0;white-space:pre-wrap;line-height:1.5;">' + esc(a.message) + '</p>' : ''}
+              <div style="font-size:11px;color:#94a3b8;margin-top:8px;">Posted by <strong style="color:#64748b;">${esc(a.posted_by)}</strong> &middot; ${fmt(a.created_at)}</div>
+            </div>
+            ${admin ? '<button class="ann-del" data-id="' + esc(a.id) + '" style="flex-shrink:0;width:28px;height:28px;border-radius:7px;border:none;background:#f8fafc;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;" onmouseenter="this.style.background=\'#fef2f2\';this.style.color=\'#dc2626\';" onmouseleave="this.style.background=\'#f8fafc\';this.style.color=\'#94a3b8\';"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg></button>' : ''}
+          </div>
+        </div>`).join('')
+      : '<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:60px 20px;text-align:center;color:#94a3b8;font-size:13px;">No announcements yet</div>';
 
     el.innerHTML = `
-      <div class="space-y-4 animate-fade-in">
-        <div class="flex items-center justify-between">
+      <div style="max-width:720px;margin:0 auto;padding:4px 0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
           <div>
-            <h1 class="text-xl font-bold text-slate-900">Announcements</h1>
-            <p class="text-[12px] text-slate-500 mt-0.5">Company-wide notices and updates</p>
+            <h1 style="font-size:19px;font-weight:700;color:#0f172a;letter-spacing:-0.02em;margin:0;">Announcements</h1>
+            <p style="font-size:12.5px;color:#64748b;margin:3px 0 0;">Company-wide notices and updates</p>
           </div>
-          ${admin ? `<button id="ann-new-btn" class="btn-primary flex items-center gap-1.5">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-            New Announcement
-          </button>` : ''}
+          ${admin ? '<button id="ann-new-btn" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;background:linear-gradient(135deg,#5e6ad2,#4f5ab8);color:#fff;border:none;cursor:pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>New Announcement</button>' : ''}
         </div>
-        <div class="space-y-3">${cards}</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">${cards}</div>
       </div>`;
 
-    document.getElementById('ann-new-btn')?.addEventListener('click', () => { _modalOpen = true; renderModal(); });
+    document.getElementById('ann-new-btn')?.addEventListener('click', () => _openModal());
     el.querySelectorAll('.ann-del').forEach(btn => {
       btn.addEventListener('click', () => deleteAnnouncement(btn.dataset.id));
+    });
+  }
+
+  function _openModal() {
+    const ex = document.getElementById('ann-modal');
+    if (ex) ex.remove();
+    let title = '', message = '', saving = false;
+
+    const html = `
+      <div id="ann-modal" style="position:fixed;inset:0;background:rgba(15,23,42,0.45);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">
+        <div style="background:#fff;border-radius:20px;box-shadow:0 20px 48px rgba(0,0,0,0.14);width:100%;max-width:440px;overflow:hidden;" onclick="event.stopPropagation()">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid #f1f5f9;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:34px;height:34px;border-radius:10px;background:#fffbeb;color:#d97706;display:flex;align-items:center;justify-content:center;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+              </div>
+              <div>
+                <div style="font-size:15px;font-weight:700;color:#0f172a;">Post Announcement</div>
+                <div style="font-size:11.5px;color:#94a3b8;margin-top:1px;">Visible to all employees</div>
+              </div>
+            </div>
+            <button id="ann-close" style="width:28px;height:28px;border-radius:8px;border:none;background:#f1f5f9;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div style="padding:20px 22px;display:flex;flex-direction:column;gap:14px;">
+            <div>
+              <label style="display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px;">Title <span style="color:#ef4444">*</span></label>
+              <input id="ann-title" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;color:#1e293b;outline:none;box-sizing:border-box;" placeholder="Announcement title" />
+            </div>
+            <div>
+              <label style="display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px;">Message <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+              <textarea id="ann-message" rows="4" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;color:#1e293b;outline:none;resize:none;box-sizing:border-box;font-family:inherit;" placeholder="Write the announcement details..."></textarea>
+            </div>
+          </div>
+          <div style="padding:16px 22px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:8px;">
+            <button id="ann-cancel" class="btn-secondary">Cancel</button>
+            <button id="ann-post" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;background:linear-gradient(135deg,#5e6ad2,#4f5ab8);color:#fff;border:none;cursor:pointer;">Post Announcement</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    const closeModal = () => { document.getElementById('ann-modal')?.remove(); };
+    document.getElementById('ann-modal').addEventListener('click', closeModal);
+    document.getElementById('ann-close').addEventListener('click', closeModal);
+    document.getElementById('ann-cancel').addEventListener('click', closeModal);
+    document.getElementById('ann-title').focus();
+
+    document.getElementById('ann-title').addEventListener('input', e => { title = e.target.value; });
+    document.getElementById('ann-message').addEventListener('input', e => { message = e.target.value; });
+
+    document.getElementById('ann-post').addEventListener('click', async () => {
+      if (!title.trim()) { Utils.showToast('Title is required', 'error'); return; }
+      const btn = document.getElementById('ann-post');
+      btn.disabled = true; btn.textContent = 'Posting…';
+      try {
+        await Utils.apiFetch('/api/announcements', { method: 'POST', body: JSON.stringify({ title, message }) });
+        closeModal();
+        await loadData();
+        renderPage();
+        Utils.showToast('Announcement posted!', 'success');
+      } catch (e) {
+        btn.disabled = false; btn.textContent = 'Post Announcement';
+        Utils.showToast(e.message || 'Failed', 'error');
+      }
     });
   }
 
