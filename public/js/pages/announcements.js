@@ -97,7 +97,7 @@ window.Pages.announcements = (() => {
   }
 
   function renderPage() {
-    const el = document.querySelector('[data-page="announcements"]');
+    const el = document.getElementById('main-content');
     if (!el) return;
     const admin = isAdmin();
 

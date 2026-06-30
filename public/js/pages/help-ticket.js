@@ -117,7 +117,7 @@ window.Pages['help-ticket'] = (() => {
   }
 
   function renderPage() {
-    const el = document.querySelector('[data-page="help-ticket"]');
+    const el = document.getElementById('main-content');
     if (!el) return;
 
     const admin = isAdmin();
