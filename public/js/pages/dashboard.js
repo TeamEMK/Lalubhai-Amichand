@@ -135,7 +135,7 @@ window.Pages.dashboard = (function () {
   function getFiltered() {
     const { data, subTab, userFilter } = _state;
     if (!data) return [];
-    const STATUS_RANK = { revise: 0, revise_requested: 1, pending: 2, done: 3 };
+    const STATUS_RANK = { revise: 0, pending: 1, done: 2 };
     return data.pendingTasks
       .filter(t =>
         (subTab === 'All' || t.type === subTab) &&
@@ -300,10 +300,10 @@ window.Pages.dashboard = (function () {
           <div class="card db-stat-card" style="padding:20px;">
             <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px;">Pending</div>
             <div id="db-stat-pending" style="font-size:2.5rem;font-weight:800;color:#dc2626;">${data.pending || data.pendingTasks.length}</div>
-            <div id="db-stat-revised" style="font-size:11px;font-weight:600;color:#d97706;margin-top:4px;${data.revised > 0 ? '' : 'display:none;'}">+ ${data.revised} revised</div>
+            <div id="db-stat-revised" style="font-size:11px;font-weight:600;color:#d97706;margin-top:4px;${data.revised > 0 ? '' : 'display:none;'}">+ ${data.revised} shifted</div>
           </div>
           <div class="card db-stat-card" style="padding:20px;">
-            <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px;">Revised</div>
+            <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px;">Shifted</div>
             <div id="db-stat-revised-count" style="font-size:2.5rem;font-weight:800;color:#d97706;">${data.revised || 0}</div>
           </div>
           <div class="card db-stat-card" style="padding:20px;">
@@ -606,16 +606,16 @@ window.Pages.dashboard = (function () {
         </div>
       </div>
 
-      <!-- ── Revise Modal ── -->
+      <!-- ── Shift Modal ── -->
       <div id="modal-revise" class="db-modal-overlay">
         <div class="db-modal-box" onclick="event.stopPropagation()">
           <div class="db-modal-head">
-            <div id="revise-modal-icon" style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <div id="revise-modal-icon" style="width:36px;height:36px;border-radius:10px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/></svg>
             </div>
             <div style="flex:1;">
-              <h2 id="revise-modal-title" style="font-size:14px;font-weight:700;margin:0;"></h2>
-              <p id="revise-modal-desc"  style="font-size:11.5px;color:#64748b;margin:2px 0 0;"></p>
+              <h2 style="font-size:14px;font-weight:700;margin:0;">Shift Task</h2>
+              <p style="font-size:11.5px;color:#64748b;margin:2px 0 0;">Mark this task as shifted with an optional new date</p>
             </div>
             <button id="modal-revise-close" style="background:none;border:none;cursor:pointer;color:#64748b;padding:4px;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -624,17 +624,17 @@ window.Pages.dashboard = (function () {
           <div class="db-modal-body">
             <div id="revise-task-info" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:12.5px;"></div>
             <div id="revise-date-wrap">
-              <label class="db-label">Revise until <span style="color:#ef4444">*</span></label>
+              <label class="db-label">Shift until <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
               <input type="date" id="revise-date-input" class="db-input" />
             </div>
             <div id="revise-note-wrap">
-              <label class="db-label" id="revise-note-label">Revise note</label>
-              <textarea id="revise-note-input" rows="3" class="db-input" style="resize:none;" placeholder="What needs to be corrected?"></textarea>
+              <label class="db-label">Note <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+              <textarea id="revise-note-input" rows="3" class="db-input" style="resize:none;" placeholder="Why is this being shifted?"></textarea>
             </div>
           </div>
           <div class="db-modal-foot">
             <button id="modal-revise-cancel" class="db-btn-secondary">Cancel</button>
-            <button id="modal-revise-confirm" class="db-btn-danger">Confirm</button>
+            <button id="modal-revise-confirm" class="db-btn-warn">Confirm Shift</button>
           </div>
         </div>
       </div>
@@ -715,7 +715,7 @@ window.Pages.dashboard = (function () {
     const allSlices = [
       { value: completed,        color: '#10b981', label: 'Completed' },
       { value: pending - (upcoming||0), color: '#ef4444', label: 'Pending'   },
-      { value: revised,          color: '#f59e0b', label: 'Revised'   },
+      { value: revised,          color: '#f59e0b', label: 'Shifted'   },
       { value: upcoming || 0,    color: '#7c3aed', label: 'Upcoming'  },
     ];
     const slices = allSlices.filter(s => s.value > 0);
@@ -789,20 +789,9 @@ window.Pages.dashboard = (function () {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : '';
       const transferred = t.transferredFrom ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 6px;border-radius:5px;background:#fffbeb;color:#b45309;border:1px solid #fde68a;font-weight:600;" title="${t.transferredBy ? 'Transferred by ' + t.transferredBy : ''}">🔄 from ${t.transferredFrom}</span>` : '';
 
-      let actionHTML;
-      if (t.type === 'Delegation' && t.status === 'revise_requested') {
-        if (admin) {
-          actionHTML = `
-            <button class="pill-act pill-grant" data-action="grant" data-id="${t.id}">Grant</button>
-            <button class="pill-act pill-deny"  data-action="deny"  data-id="${t.id}">Deny</button>`;
-        } else {
-          actionHTML = `<span class="pill-pending-wait">⏳ Pending</span>`;
-        }
-      } else {
-        actionHTML = `<button class="pill-act pill-done" data-action="done" data-id="${t.id}">Done</button>`;
-        if (t.type === 'Delegation') {
-          actionHTML += ` <button class="pill-act pill-revise" data-action="revise" data-id="${t.id}">Revise</button>`;
-        }
+      let actionHTML = `<button class="pill-act pill-done" data-action="done" data-id="${t.id}">Done</button>`;
+      if (t.type === 'Delegation') {
+        actionHTML += ` <button class="pill-act pill-revise" data-action="shift" data-id="${t.id}">Shift</button>`;
       }
 
       return `<tr style="transition:background .1s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
@@ -850,10 +839,8 @@ window.Pages.dashboard = (function () {
         const task = _state.data.pendingTasks.find(t => t.id === id);
         if (!task) return;
         const action = btn.dataset.action;
-        if (action === 'done')   markDone(task, admin);
-        if (action === 'revise') openReviseModal(task, 'request', admin);
-        if (action === 'grant')  openReviseModal(task, 'grant',   admin);
-        if (action === 'deny')   denyRevise(task, admin);
+        if (action === 'done')  markDone(task, admin);
+        if (action === 'shift') openShiftModal(task, admin);
       });
     });
   }
@@ -885,59 +872,23 @@ window.Pages.dashboard = (function () {
     });
   }
 
-  /* ── revise modal open ───────────────────────────────────────────── */
-  function openReviseModal(task, mode, admin) {
-    _state.reviseTask = { ...task, _mode: mode };
+  /* ── shift modal open ───────────────────────────────────────────── */
+  function openShiftModal(task, admin) {
+    _state.reviseTask = { ...task, _mode: 'shift' };
     _state.reviseNote = '';
     _state.reviseDate = '';
 
-    const copy = {
-      request: { title: 'Request Revision',    desc: 'This will be sent to admin for approval.',         btnClass: 'db-btn-danger',   btnText: 'Send Request'   },
-      revise:  { title: 'Confirm Revise',       desc: 'Send this task back to the doer for revision?',    btnClass: 'db-btn-danger',   btnText: 'Confirm Revise' },
-      grant:   { title: 'Grant Revise Request', desc: 'Approve this revision request and send task back?', btnClass: 'db-btn-success', btnText: 'Grant Revise'   },
-    }[mode];
-
-    const iconEl = document.getElementById('revise-modal-icon');
-    if (iconEl) {
-      iconEl.style.background = mode === 'grant' ? '#ecfdf5' : '#fef2f2';
-      iconEl.style.color      = mode === 'grant' ? '#059669' : '#dc2626';
-    }
-    document.getElementById('revise-modal-title').textContent = copy.title;
-    document.getElementById('revise-modal-desc').textContent  = copy.desc;
-
     const infoEl = document.getElementById('revise-task-info');
     if (infoEl) {
-      let extra = '';
-      if (mode === 'grant' && task.date)    extra += `<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#475569;padding-top:8px;border-top:1px solid #e2e8f0;"><span style="color:#94a3b8;">Revise Until:</span><b style="color:#C4714A;">${fmt(task.date)}</b></div>`;
-      if (mode === 'grant' && task.remarks) extra += `<div style="font-size:12px;color:#475569;padding-top:6px;"><span style="color:#94a3b8;">Note:</span> <b>${task.remarks}</b></div>`;
       infoEl.innerHTML = `
         <div style="font-weight:700;color:#0f172a;margin-bottom:4px;">${task.description}</div>
-        <div style="font-size:12px;color:#64748b;">Doer: <b style="color:#334155;">${task.doer}</b></div>
-        ${extra}`;
+        <div style="font-size:12px;color:#64748b;">Doer: <b style="color:#334155;">${task.doer}</b></div>`;
     }
 
-    const dateWrap = document.getElementById('revise-date-wrap');
-    const noteWrap = document.getElementById('revise-note-wrap');
-    const noteLabel = document.getElementById('revise-note-label');
     const dateInput = document.getElementById('revise-date-input');
     const noteInput = document.getElementById('revise-note-input');
-    const confirmBtn = document.getElementById('modal-revise-confirm');
-
-    if (dateWrap) dateWrap.style.display = (mode === 'request' || mode === 'revise') ? '' : 'none';
-    if (noteWrap) noteWrap.style.display = mode !== 'grant' ? '' : 'none';
-    if (noteLabel) {
-      noteLabel.innerHTML = mode === 'request'
-        ? 'Revise note <span style="color:#ef4444">*</span>'
-        : 'Revise note <span style="color:#94a3b8;font-weight:400">(optional)</span>';
-    }
     if (dateInput) { dateInput.min = todayISO(); dateInput.value = ''; }
-    if (noteInput) { noteInput.value = ''; noteInput.placeholder = mode === 'request' ? 'Explain what needs to be revised (required)' : 'What needs to be corrected?'; }
-
-    /* swap confirm button class */
-    if (confirmBtn) {
-      confirmBtn.className = copy.btnClass;
-      confirmBtn.textContent = copy.btnText;
-    }
+    if (noteInput) { noteInput.value = ''; }
 
     showModal('modal-revise');
   }
@@ -987,7 +938,7 @@ window.Pages.dashboard = (function () {
           if (statPending)   statPending.textContent   = newData.pending || newData.pendingTasks.length;
           if (statUpcoming)  statUpcoming.textContent  = newData.upcoming || 0;
           if (statRevised) {
-            statRevised.textContent = newData.revised > 0 ? `+ ${newData.revised} revised` : '';
+            statRevised.textContent = newData.revised > 0 ? `+ ${newData.revised} shifted` : '';
             statRevised.style.display = newData.revised > 0 ? '' : 'none';
           }
           /* update pie chart */
@@ -1305,12 +1256,8 @@ window.Pages.dashboard = (function () {
     el.querySelector('#modal-revise-confirm')?.addEventListener('click', async () => {
       const task = _state.reviseTask;
       if (!task) { hideModal('modal-revise'); return; }
-      const mode     = task._mode || 'revise';
-      const dateVal  = document.getElementById('revise-date-input')?.value;
-      const noteVal  = document.getElementById('revise-note-input')?.value.trim();
-
-      if (mode !== 'grant' && !dateVal) { Utils.showToast('Please pick a "revise until" date', 'warning'); return; }
-      if (mode === 'request' && !noteVal) { Utils.showToast('Revise note is required — please explain what needs to be revised', 'warning'); return; }
+      const dateVal = document.getElementById('revise-date-input')?.value;
+      const noteVal = document.getElementById('revise-note-input')?.value.trim();
 
       const confirmBtn = document.getElementById('modal-revise-confirm');
       if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Saving…'; }
@@ -1321,14 +1268,13 @@ window.Pages.dashboard = (function () {
           body: JSON.stringify({
             id: task.id,
             status: 'revise',
-            _grantRevise: mode === 'grant',
             remarks: noteVal || undefined,
-            ...(mode !== 'grant' && dateVal ? { dueDate: dateVal } : {}),
+            ...(dateVal ? { dueDate: dateVal } : {}),
           }),
         });
         hideModal('modal-revise');
         _state.reviseTask = null;
-        Utils.showToast(mode === 'grant' ? 'Revise granted.' : 'Revise request sent.');
+        Utils.showToast('Task shifted.');
         await _refresh(admin);
       } catch (err) {
         Utils.showToast(err.message || 'Failed to update task', 'error');
