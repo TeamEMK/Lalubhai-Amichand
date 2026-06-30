@@ -192,17 +192,15 @@ const SCHEMA = [
 ];
 
 async function seedIfEmpty() {
-  const r = await pool.query('SELECT COUNT(*) AS c FROM users');
-  if (Number(r.rows[0].c) > 0) return;
   const adminEmail = process.env.ADMIN_EMAIL || 'Admin@lal.com';
   const adminName  = process.env.ADMIN_NAME  || 'Admin';
-  const adminPass  = process.env.ADMIN_PASSWORD || 'Admin@1234';
+  const adminPass  = process.env.ADMIN_PASSWORD || 'admin';
   const hash = await bcrypt.hash(adminPass, 10);
   await pool.query(
-    'INSERT INTO users (id,name,email,roles,active,password_hash) VALUES ($1,$2,$3,$4,1,$5) ON CONFLICT (id) DO NOTHING',
+    'INSERT INTO users (id,name,email,roles,active,password_hash) VALUES ($1,$2,$3,$4,1,$5) ON CONFLICT (id) DO UPDATE SET email=$3, roles=$4, active=1, password_hash=$5',
     ['A001', adminName, adminEmail, 'Admin', hash]
   );
-  console.log('[db] Admin user seeded:', adminEmail);
+  console.log('[db] Admin user ensured:', adminEmail);
 }
 
 async function fixCollations() {
