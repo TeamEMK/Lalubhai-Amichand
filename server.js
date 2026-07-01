@@ -193,6 +193,8 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS help_tickets (id VARCHAR(16) PRIMARY KEY, subject VARCHAR(255) NOT NULL, description TEXT DEFAULT NULL, priority VARCHAR(16) DEFAULT 'Medium', status VARCHAR(32) DEFAULT 'open', submitted_by VARCHAR(255) NOT NULL DEFAULT '', submitted_by_id VARCHAR(16) DEFAULT NULL, ticket_date DATE DEFAULT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE INDEX idx_ht_status ON help_tickets (status)`,
   `ALTER TABLE help_tickets ADD COLUMN IF NOT EXISTS ticket_date DATE DEFAULT NULL`,
+  `ALTER TABLE help_tickets ADD COLUMN IF NOT EXISTS name VARCHAR(255) DEFAULT NULL`,
+  `ALTER TABLE help_tickets ADD COLUMN IF NOT EXISTS transferred_to VARCHAR(255) DEFAULT NULL`,
   `CREATE TABLE IF NOT EXISTS announcements (id VARCHAR(16) PRIMARY KEY, title VARCHAR(255) NOT NULL, message TEXT DEFAULT NULL, posted_by VARCHAR(255) NOT NULL DEFAULT '', created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS vendor_submissions (id VARCHAR(16) PRIMARY KEY, business_name VARCHAR(255) NOT NULL, contact_person VARCHAR(255) DEFAULT '', phone VARCHAR(64) DEFAULT '', email VARCHAR(255) DEFAULT '', gst_no VARCHAR(32) DEFAULT '', address TEXT DEFAULT NULL, products TEXT DEFAULT NULL, notes TEXT DEFAULT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
@@ -885,8 +887,8 @@ app.post('/api/help-tickets', requireAuth, async (req, res) => {
     const id = 'HT' + Date.now().toString(36).toUpperCase();
     const displayName = name || user.name;
     await pool.query(
-      'INSERT INTO help_tickets (id,subject,description,priority,status,submitted_by,submitted_by_id,ticket_date) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-      [id, subject, description||'', priority||'Medium', 'open', displayName, user.id, date||null]
+      'INSERT INTO help_tickets (id,subject,description,priority,status,submitted_by,submitted_by_id,ticket_date,name) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+      [id, subject, description||'', priority||'Medium', 'open', displayName, user.id, date||null, displayName]
     );
     return res.status(201).json({ id });
   } catch (e) { return res.status(500).json({ error: e.message }); }
@@ -895,9 +897,13 @@ app.post('/api/help-tickets', requireAuth, async (req, res) => {
 app.patch('/api/help-tickets', requireAuth, async (req, res) => {
   try {
     await ensureSchema();
-    const { id, status } = req.body;
+    const { id, status, transferred_to } = req.body;
     if (!id) return res.status(400).json({ error: 'id required' });
-    await pool.query('UPDATE help_tickets SET status=COALESCE($1,status) WHERE id=$2', [status??null, id]);
+    if (transferred_to !== undefined) {
+      await pool.query('UPDATE help_tickets SET transferred_to=$1 WHERE id=$2', [transferred_to||null, id]);
+    } else {
+      await pool.query('UPDATE help_tickets SET status=COALESCE($1,status) WHERE id=$2', [status??null, id]);
+    }
     return res.json({ success: true });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
