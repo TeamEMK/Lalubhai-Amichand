@@ -926,9 +926,15 @@ window.Pages.dashboard = (function () {
             </button>
           </div>
           <div style="padding:20px 22px;display:flex;flex-direction:column;gap:14px;">
-            <div>
-              <label style="display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px;">Your Name</label>
-              <input id="db-ht-name" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;color:#1e293b;outline:none;box-sizing:border-box;" value="${userName}" placeholder="Your name" />
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div>
+                <label style="display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px;">Ticket For</label>
+                <input id="db-ht-name" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;color:#1e293b;outline:none;box-sizing:border-box;" value="${userName}" placeholder="Ticket for whom" />
+              </div>
+              <div>
+                <label style="display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px;">Filed By</label>
+                <input id="db-ht-filed-by" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;color:#64748b;outline:none;box-sizing:border-box;background:#f8fafc;" value="${userName}" placeholder="Filed by" readonly />
+              </div>
             </div>
             <div>
               <label style="display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px;">Issue <span style="color:#ef4444">*</span></label>
@@ -976,9 +982,10 @@ window.Pages.dashboard = (function () {
 
       btn.disabled = true; btn.textContent = 'Submitting…';
       try {
+        const filedBy = document.getElementById('db-ht-filed-by')?.value.trim();
         await Utils.apiFetch('/api/help-tickets', {
           method: 'POST',
-          body: JSON.stringify({ name, subject: issue, date, priority }),
+          body: JSON.stringify({ name, filedBy, subject: issue, date, priority }),
         });
         closeModal();
         Utils.showToast('Help ticket submitted!', 'success');
