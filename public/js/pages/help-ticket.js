@@ -161,8 +161,8 @@ window.Pages['help-ticket'] = (() => {
           <div style="padding:20px 22px;display:flex;flex-direction:column;gap:14px;">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
               <div>
-                <label style="display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px;">Your Name</label>
-                <input id="ht-name" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;color:#1e293b;outline:none;box-sizing:border-box;" value="${esc(_form.name)}" placeholder="Your name" />
+                <label style="display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px;">Ticket For</label>
+                <input id="ht-name" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;color:#1e293b;outline:none;box-sizing:border-box;" value="${esc(_form.name)}" placeholder="Ticket for whom" />
               </div>
               <div>
                 <label style="display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px;">Filed By</label>
