@@ -122,7 +122,6 @@ window.Pages.dashboard = (function () {
     users: [],
     holidays: [],
     delegations: [],
-    clients: [],
     subTab: 'All',
     userFilter: 'All',
     reviseTask: null,
@@ -164,12 +163,11 @@ window.Pages.dashboard = (function () {
     const admin = isAdmin(user);
 
     /* parallel fetches */
-    const [dashData, usersData, holidaysData, delegationsData, clientsData] = await Promise.all([
+    const [dashData, usersData, holidaysData, delegationsData] = await Promise.all([
       Utils.apiFetch('/api/dashboard'),
       Utils.apiFetch('/api/users'),
       Utils.apiFetch('/api/holidays'),
       admin ? Utils.apiFetch('/api/delegations') : Promise.resolve([]),
-      Utils.apiFetch('/api/clients').catch(() => []),
     ]);
 
     if (!dashData) return;
@@ -178,7 +176,6 @@ window.Pages.dashboard = (function () {
     _state.users       = usersData || [];
     _state.holidays    = holidaysData || [];
     _state.delegations = delegationsData || [];
-    _state.clients     = clientsData || [];
     _state.subTab      = 'All';
     _state.userFilter  = 'All';
 
@@ -510,14 +507,6 @@ window.Pages.dashboard = (function () {
                 <label class="db-label">END DATE <span style="font-size:10px;color:#94a3b8;font-weight:400;text-transform:none;">(OPTIONAL)</span></label>
                 <input type="date" id="chk-end" class="db-input" />
               </div>
-            </div>
-            <!-- Client -->
-            <div>
-              <label class="db-label">CLIENT <span style="font-size:10px;color:#94a3b8;font-weight:400;text-transform:none;">(OPTIONAL)</span></label>
-              <select id="chk-client" class="db-input">
-                <option value="">— No Client —</option>
-                ${(_state.clients || []).map(c => `<option value="${c.name||c}">${c.name||c}</option>`).join('')}
-              </select>
             </div>
             <!-- Task Name / Description -->
             <div>
@@ -1281,7 +1270,7 @@ window.Pages.dashboard = (function () {
 
     /* ── checklist modal ── */
     function resetChecklistForm() {
-      ['#chk-assigned','#chk-frequency','#chk-start','#chk-end','#chk-client','#chk-task','#chk-remarks'].forEach(id => {
+      ['#chk-assigned','#chk-frequency','#chk-start','#chk-end','#chk-task','#chk-remarks'].forEach(id => {
         const f = el.querySelector(id);
         if (!f) return;
         if (f.tagName === 'SELECT') f.selectedIndex = 0;
@@ -1311,7 +1300,6 @@ window.Pages.dashboard = (function () {
       const frequency  = el.querySelector('#chk-frequency')?.value || 'daily';
       const startDate  = el.querySelector('#chk-start')?.value || todayISO();
       const endDate    = el.querySelector('#chk-end')?.value || '';
-      const client     = el.querySelector('#chk-client')?.value || '';
       const remarks    = el.querySelector('#chk-remarks')?.value.trim() || '';
       const errEl      = el.querySelector('#chk-error');
 
@@ -1325,7 +1313,7 @@ window.Pages.dashboard = (function () {
       try {
         await Utils.apiFetch('/api/masters', {
           method: 'POST',
-          body: JSON.stringify({ task, assignedTo: userName, frequency, startDate, endDate: endDate || null, client, remarks }),
+          body: JSON.stringify({ task, assignedTo: userName, frequency, startDate, endDate: endDate || null, remarks }),
         });
         hideModal('modal-checklist');
         Utils.showToast('Checklist tasks generated!');
